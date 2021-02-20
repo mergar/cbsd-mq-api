@@ -23,4 +23,4 @@ export GOBIN="${workdir}"
 
 set -e
 go get
-go build -ldflags "${LDFLAGS} -extldflags '-static'" -o "${workdir}/cbsd-mq-api"
+go build -ldflags "${LDFLAGS} -extldflags '-static'" -o "${workdir}/bhyve-mq-api"

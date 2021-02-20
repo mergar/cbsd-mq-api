@@ -25,6 +25,8 @@ func beanstalkSend(config BeanstalkConfig, body string) (string,error) {
 	tube := config.Tube
 
 	fmt.Printf("Calling beanstalkd: %s\n",amqpURI);
+	fmt.Printf("Tube selected: %s\n",tube);
+	fmt.Printf("Reply Tube prefix: %s\n",config.ReplyTubePrefix);
 
 	c, err := beanstalk.Dial("tcp", amqpURI)
 

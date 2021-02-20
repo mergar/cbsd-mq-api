@@ -7,9 +7,11 @@ import (
 )
 
 type Config struct {
-	CbsdEnv		string	`json:"cbsdenv"`
-	Broker		string	`json:"broker"`
-	ImageList	string	`json:"imagelist"`
+	CbsdEnv			string	`json:"cbsdenv"`
+	Broker			string	`json:"broker"`
+	ImageList		string	`json:"imagelist"`
+	Recomendation		string	`json:"recomendation"`
+	Freejname		string	`json:"freejname"`
 	BeanstalkConfig		`json:"beanstalkd"`
 }
 
