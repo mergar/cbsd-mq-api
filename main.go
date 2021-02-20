@@ -34,10 +34,11 @@ type Response struct {
 
 // The cluster Type. Name of elements must match with jconf params
 type Vm struct {
-	Jname		string  `json:jname,omitempty"`
+	Type		string	`json:type,omitempty"`
+	Jname		string	`json:jname,omitempty"`
 	Img		string	`json:img,omitempty"`
 	Ram		string	`json:ram,omitempty"`
-	Cpus		string  `"cpus,omitempty"`
+	Cpus		string	`"cpus,omitempty"`
 	Imgsize		string	`"imgsize,omitempty"`
 	Pubkey		string	`"pubkey,omitempty"`
 //	Email		string  `"email,omitempty"`
@@ -54,9 +55,8 @@ var (
 //	cbsdEnv		= flag.String("cbsdenv", "/usr/jails", "CBSD workdir environment")
 	configFile	= flag.String("config", "/usr/local/etc/cbsd-mq-api.json", "Path to config.json")
 	listen *string	= flag.String("listen", "0.0.0.0:65531", "Listen host:port")
-// JAILS
-//	runScript	= flag.String("runscript", "bhyve-api", "CBSD target run script")
-	runScript	= flag.String("runscript", "jail-api", "CBSD target run script")
+	runScriptJail	= flag.String("runscript_jail", "jail-api", "CBSD target run script")
+	runScriptBhyve	= flag.String("runscript_bhyve", "bhyve-api", "CBSD target run script")
 )
 
 func fileExists(filename string) bool {
@@ -84,7 +84,7 @@ func main() {
 
 //	sentry.CaptureException(err)
 
-	runscript = *runScript
+//	runscript = *runScript
 	workdir=config.CbsdEnv
 
 	if err != nil {
@@ -307,6 +307,25 @@ func HandleClusterCreate(w http.ResponseWriter, r *http.Request) {
 	var vm Vm
 	_ = json.NewDecoder(r.Body).Decode(&vm)
 
+	switch vm.Type {
+		case "jail":
+			fmt.Println(vm.Type, "type selected")
+			runscript = *runScriptJail
+		case "bhyve":
+			fmt.Println(vm.Type, "type selected")
+			runscript = *runScriptBhyve
+		default:
+			fmt.Println("Unknown resource type:", vm.Type, "valid: 'bhyve', 'jail'")
+			response := Response{"unknown resource type"}
+			js, err := json.Marshal(response)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			http.Error(w, string(js), 400)
+			return
+	}
+
 	if ( len(vm.Pubkey)<30 ) {
 		fmt.Printf("Error: Pubkey too small: []\n",vm.Pubkey)
 		response := Response{"Pubkey too small"}
@@ -340,7 +359,6 @@ func HandleClusterCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, string(js), 400)
 		return
 	}
-
 
 	parsedKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(vm.Pubkey))
 	if err != nil {
@@ -400,7 +418,6 @@ func HandleClusterCreate(w http.ResponseWriter, r *http.Request) {
 	//existance?
 	// check for existance
 	cid := md5.Sum(uid)
-
 	VmPathDir := fmt.Sprintf("/usr/local/cloud/%x", cid)
 
 	if !fileExists(VmPathDir) {
