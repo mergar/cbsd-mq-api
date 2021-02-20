@@ -1,0 +1,17 @@
+{
+    "cbsdenv": "/jails",
+    "cbsdcolor": false,
+    "broker": "beanstalkd",
+    "logfile": "/dev/stdout",
+    "recomendation": "/root/api/recomendation.sh",
+    "freejname": "/root/api/freejname.sh",
+    "beanstalkd": {
+      "uri": "127.0.0.1:11300",
+      "tube": "cbsd_home2_olevole_ru",
+      "reply_tube_prefix": "cbsd_home2_olevole_ru_result_id",
+      "reconnect_timeout": 5,
+      "reserve_timeout": 5,
+      "publish_timeout": 5,
+      "logdir": "/var/log/cbsdmq"
+    }
+}

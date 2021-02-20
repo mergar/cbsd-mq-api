@@ -49,10 +49,14 @@ type Vm struct {
 
 var (
 	body		= flag.String("body", "", "Body of message")
-	cbsdEnv		= flag.String("cbsdenv", "/usr/jails", "CBSD workdir environment")
-	configFile	= flag.String("config", "/usr/local/etc/bhyve-mq-api.json", "Path to config.json")
+// JAILS
+	cbsdEnv		= flag.String("cbsdenv", "/jails", "CBSD workdir environment")
+//	cbsdEnv		= flag.String("cbsdenv", "/usr/jails", "CBSD workdir environment")
+	configFile	= flag.String("config", "/usr/local/etc/cbsd-mq-api.json", "Path to config.json")
 	listen *string	= flag.String("listen", "0.0.0.0:65531", "Listen host:port")
-	runScript	= flag.String("runscript", "bhyve-api", "CBSD target run script")
+// JAILS
+//	runScript	= flag.String("runscript", "bhyve-api", "CBSD target run script")
+	runScript	= flag.String("runscript", "jail-api", "CBSD target run script")
 )
 
 func fileExists(filename string) bool {
