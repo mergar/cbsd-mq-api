@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	ServerUrl		string	`json:"server_url"`
 	CbsdEnv			string	`json:"cbsdenv"`
 	Broker			string	`json:"broker"`
 	ImageList		string	`json:"imagelist"`

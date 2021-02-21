@@ -5,6 +5,7 @@
     "logfile": "/dev/stdout",
     "recomendation": "/root/api/recomendation.sh",
     "freejname": "/root/api/freejname.sh",
+    "server_url": "http://127.0.0.1:65531",
     "beanstalkd": {
       "uri": "127.0.0.1:11300",
       "tube": "cbsd_home2_olevole_ru",

@@ -24,9 +24,10 @@ import (
 )
 
 var lock = sync.RWMutex{}
-var config Config
-var runscript string
-var workdir string
+var config	Config
+var runscript	string
+var workdir	string
+var server_url	string
 
 type Response struct {
 	Message    string
@@ -57,6 +58,10 @@ var (
 	listen *string	= flag.String("listen", "0.0.0.0:65531", "Listen host:port")
 	runScriptJail	= flag.String("runscript_jail", "jail-api", "CBSD target run script")
 	runScriptBhyve	= flag.String("runscript_bhyve", "bhyve-api", "CBSD target run script")
+	destroyScript	= flag.String("destroy_script", "control-api", "CBSD target run script")
+	startScript	= flag.String("start_script", "control-api", "CBSD target run script")
+	stopScript	= flag.String("stop_script", "control-api", "CBSD target run script")
+	serverUrl	= flag.String("server_url", "http://127.0.0.1:65532", "Server URL for external requests") 
 )
 
 func fileExists(filename string) bool {
@@ -84,8 +89,8 @@ func main() {
 
 //	sentry.CaptureException(err)
 
-//	runscript = *runScript
 	workdir=config.CbsdEnv
+	server_url=config.ServerUrl
 
 	if err != nil {
 		fmt.Println("config load error")
@@ -103,9 +108,12 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/create/{instanceid}", HandleClusterCreate).Methods("POST")
 	router.HandleFunc("/api/v1/status/{instanceid}", HandleClusterStatus).Methods("GET")
+	router.HandleFunc("/api/v1/start/{instanceid}", HandleClusterStart).Methods("GET")
+	router.HandleFunc("/api/v1/stop/{instanceid}", HandleClusterStop).Methods("GET")
 	router.HandleFunc("/api/v1/cluster", HandleClusterCluster).Methods("GET")
 	router.HandleFunc("/api/v1/destroy/{instanceid}", HandleClusterDestroy).Methods("GET")
 	fmt.Println("Listen",*listen)
+	fmt.Println("Server URL",server_url)
 	log.Fatal(http.ListenAndServe(*listen, router))
 }
 
@@ -464,9 +472,10 @@ func HandleClusterCreate(w http.ResponseWriter, r *http.Request) {
 	// but now this is too simple case/data without any processing
 	str.WriteString("{\"Command\":\"")
 	str.WriteString(runscript)
-	str.WriteString("\",\"CommandArgs\":{\"mode\":\"init\",\"jname\":\"")
+	str.WriteString("\",\"CommandArgs\":{\"mode\":\"create\",\"jname\":\"")
 	str.WriteString(Jname)
 	str.WriteString("\"")
+	//str.WriteString("}}");
 
 	for i := 0; i < val.NumField(); i++ {
 		valueField := val.Field(i)
@@ -497,7 +506,7 @@ func HandleClusterCreate(w http.ResponseWriter, r *http.Request) {
 	str.WriteString(instanceid)
 	str.WriteString("\"}}");
 	fmt.Printf("C: [%s]\n",str.String())
-	response := fmt.Sprintf("API:\ncurl -H \"cid:%x\" https://cloud.convectix.com/api/v1/cluster\ncurl -H \"cid:%x\" https://cloud.convectix.com/api/v1/status/%s\ncurl -H \"cid:%x\" https://cloud.convectix.com/api/v1/destroy/%s\n", cid, cid, instanceid, cid, instanceid)
+	response := fmt.Sprintf("API:\ncurl -H \"cid:%x\" %s/api/v1/cluster\ncurl -H \"cid:%x\" %s/api/v1/status/%s\ncurl -H \"cid:%x\" %s/api/v1/start/%s\ncurl -H \"cid:%x\" %s/api/v1/stop/%s\ncurl -H \"cid:%x\" %s/api/v1/destroy/%s\n", cid, server_url, cid, server_url, instanceid, cid, server_url, instanceid, cid, server_url, instanceid, cid, server_url, instanceid)
 //	md5uid := cid
 //	response := string(md5uid[:])
 
@@ -584,13 +593,14 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	fmt.Printf("Destroy %s via /root/srv/map/%x-%s\n",string(b), Cid, instanceid)
 
 	// of course we can use marshal here instead of string concatenation, 
 	// but now this is too simple case/data without any processing
 	var str strings.Builder
 
+	// destroy via
+	runscript = *destroyScript
 	str.WriteString("{\"Command\":\"")
 	str.WriteString(runscript)
 	str.WriteString("\",\"CommandArgs\":{\"mode\":\"destroy\",\"jname\":\"")
@@ -600,32 +610,30 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 
 	//get guest nodes & tubes
 	SqliteDBPath := fmt.Sprintf("/usr/local/cloud/%s/%s.node", Cid,string(b))
-        if fileExists(SqliteDBPath) {
-                b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
-                if err != nil {
-                        http.Error(w, "{}", 400)
-                        return
-                } else {
-	result := strings.Replace(string(b), ".", "_", -1)
-	result = strings.Replace(result, "-", "_", -1)
-	result = strings.TrimSuffix(result, "\n")
-//	result = strings.Replace(result, "\r\n", "", -1)
+	if fileExists(SqliteDBPath) {
+		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
+		if err != nil {
+			http.Error(w, "{}", 400)
+			return
+		} else {
+			result := strings.Replace(string(b), ".", "_", -1)
+			result = strings.Replace(result, "-", "_", -1)
+			result = strings.TrimSuffix(result, "\n")
+		//	result = strings.Replace(result, "\r\n", "", -1)
 
-	tube := fmt.Sprintf("cbsd_%s",result)
-	reply := fmt.Sprintf("cbsd_%s_result_id",result)
+			tube := fmt.Sprintf("cbsd_%s",result)
+			reply := fmt.Sprintf("cbsd_%s_result_id",result)
 
-	fmt.Printf("Tube selected: [%s]\n",tube)
-	fmt.Printf("ReplyTube selected: [%s]\n",reply)
+			fmt.Printf("Tube selected: [%s]\n",tube)
+			fmt.Printf("ReplyTube selected: [%s]\n",reply)
 
-	// result: srv-03.olevole.ru
-	config.BeanstalkConfig.Tube=tube
-	config.BeanstalkConfig.ReplyTubePrefix=reply
-
-                }
-        } else {
-                http.Error(w, "{}", 400)
-        }
-
+			// result: srv-03.olevole.ru
+			config.BeanstalkConfig.Tube=tube
+			config.BeanstalkConfig.ReplyTubePrefix=reply
+		}
+	} else {
+		http.Error(w, "{}", 400)
+	}
 
 	fmt.Printf("C: [%s]\n",str.String())
 	go realInstanceCreate(str.String())
@@ -660,7 +668,6 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
 	response := Response{"destroy"}
 	js, err := json.Marshal(response)
 	if err != nil {
@@ -670,3 +677,247 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, string(js), 200)
 	return
 }
+
+func HandleClusterStop(w http.ResponseWriter, r *http.Request) {
+	var instanceid string
+	params := mux.Vars(r)
+	instanceid = params["instanceid"]
+	var regexpInstanceId = regexp.MustCompile(`^[aA-zZ_]([aA-zZ0-9_])*$`)
+
+	Cid := r.Header.Get("cid")
+	HomePath := fmt.Sprintf("/usr/local/cloud/%s/vms", Cid)
+	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// check the name field is between 3 to 40 chars
+	if len(instanceid) < 3 || len(instanceid) > 40 {
+		http.Error(w, "The instance name must be between 3-40", 400)
+		return
+	}
+	if !regexpInstanceId.MatchString(instanceid) {
+		http.Error(w, "The instance name should be valid form, ^[aA-zZ_]([aA-zZ0-9_])*$", 400)
+		return
+	}
+
+	mapfile := fmt.Sprintf("/root/srv/map/%s-%s", Cid,instanceid)
+
+	if !fileExists(config.Recomendation) {
+		fmt.Printf("no such map file /root/srv/map/%s-%s\n",Cid, instanceid)
+		response := Response{"no found"}
+		js, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, string(js), http.StatusNotFound)
+		return
+	}
+
+	b, err := ioutil.ReadFile(mapfile) // just pass the file name
+	if err != nil {
+		fmt.Printf("unable to read jname from /root/srv/map/%s-%s\n",Cid, instanceid)
+		response := Response{"no found"}
+		js, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, string(js), http.StatusNotFound)
+		return
+	}
+
+	fmt.Printf("stop %s via /root/srv/map/%s-%s\n",string(b), Cid, instanceid)
+
+	// of course we can use marshal here instead of string concatenation, 
+	// but now this is too simple case/data without any processing
+	var str strings.Builder
+
+	runscript = *stopScript
+	str.WriteString("{\"Command\":\"")
+	str.WriteString(runscript)
+	str.WriteString("\",\"CommandArgs\":{\"mode\":\"stop\",\"jname\":\"")
+	str.WriteString(string(b))
+	str.WriteString("\"")
+	str.WriteString("}}");
+
+	//get guest nodes & tubes
+	SqliteDBPath := fmt.Sprintf("/usr/local/cloud/%s/%s.node", Cid,string(b))
+	if fileExists(SqliteDBPath) {
+		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
+		if err != nil {
+			http.Error(w, "{}", 400)
+			return
+		} else {
+			result := strings.Replace(string(b), ".", "_", -1)
+			result = strings.Replace(result, "-", "_", -1)
+			result = strings.TrimSuffix(result, "\n")
+		//	result = strings.Replace(result, "\r\n", "", -1)
+
+			tube := fmt.Sprintf("cbsd_%s",result)
+			reply := fmt.Sprintf("cbsd_%s_result_id",result)
+
+			fmt.Printf("Tube selected: [%s]\n",tube)
+			fmt.Printf("ReplyTube selected: [%s]\n",reply)
+
+			// result: srv-03.olevole.ru
+			config.BeanstalkConfig.Tube=tube
+			config.BeanstalkConfig.ReplyTubePrefix=reply
+		}
+	} else {
+		response := Response{"nodes node found"}
+		js, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, string(js), 200)
+		return
+	}
+
+	fmt.Printf("C: [%s]\n",str.String())
+	go realInstanceCreate(str.String())
+
+	// remove from FS
+	VmPath := fmt.Sprintf("/usr/local/cloud/%s/vm-%s", Cid,instanceid)
+	if fileExists(VmPath) {
+		b, err := ioutil.ReadFile(VmPath) // just pass the file name
+		if err != nil {
+			fmt.Printf("Error read UID from  [%s]\n",string(b))
+		}
+	}
+
+	response := Response{"stopped"}
+	js, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Error(w, string(js), 200)
+	return
+}
+
+
+func HandleClusterStart(w http.ResponseWriter, r *http.Request) {
+	var instanceid string
+	params := mux.Vars(r)
+	instanceid = params["instanceid"]
+	var regexpInstanceId = regexp.MustCompile(`^[aA-zZ_]([aA-zZ0-9_])*$`)
+
+	Cid := r.Header.Get("cid")
+	HomePath := fmt.Sprintf("/usr/local/cloud/%s/vms", Cid)
+	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// check the name field is between 3 to 40 chars
+	if len(instanceid) < 3 || len(instanceid) > 40 {
+		http.Error(w, "The instance name must be between 3-40", 400)
+		return
+	}
+	if !regexpInstanceId.MatchString(instanceid) {
+		http.Error(w, "The instance name should be valid form, ^[aA-zZ_]([aA-zZ0-9_])*$", 400)
+		return
+	}
+
+	mapfile := fmt.Sprintf("/root/srv/map/%s-%s", Cid,instanceid)
+
+	if !fileExists(config.Recomendation) {
+		fmt.Printf("no such map file /root/srv/map/%s-%s\n",Cid, instanceid)
+		response := Response{"no found"}
+		js, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, string(js), http.StatusNotFound)
+		return
+	}
+
+	b, err := ioutil.ReadFile(mapfile) // just pass the file name
+	if err != nil {
+		fmt.Printf("unable to read jname from /root/srv/map/%s-%s\n",Cid, instanceid)
+		response := Response{"no found"}
+		js, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, string(js), http.StatusNotFound)
+		return
+	}
+
+	fmt.Printf("start %s via /root/srv/map/%s-%s\n",string(b), Cid, instanceid)
+
+	// of course we can use marshal here instead of string concatenation, 
+	// but now this is too simple case/data without any processing
+	var str strings.Builder
+
+	runscript = *startScript
+	str.WriteString("{\"Command\":\"")
+	str.WriteString(runscript)
+	str.WriteString("\",\"CommandArgs\":{\"mode\":\"start\",\"jname\":\"")
+	str.WriteString(string(b))
+	str.WriteString("\"")
+	str.WriteString("}}");
+
+	//get guest nodes & tubes
+	SqliteDBPath := fmt.Sprintf("/usr/local/cloud/%s/%s.node", Cid,string(b))
+	if fileExists(SqliteDBPath) {
+		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
+		if err != nil {
+			http.Error(w, "{}", 400)
+			return
+		} else {
+			result := strings.Replace(string(b), ".", "_", -1)
+			result = strings.Replace(result, "-", "_", -1)
+			result = strings.TrimSuffix(result, "\n")
+		//	result = strings.Replace(result, "\r\n", "", -1)
+
+			tube := fmt.Sprintf("cbsd_%s",result)
+			reply := fmt.Sprintf("cbsd_%s_result_id",result)
+
+			fmt.Printf("Tube selected: [%s]\n",tube)
+			fmt.Printf("ReplyTube selected: [%s]\n",reply)
+
+			// result: srv-03.olevole.ru
+			config.BeanstalkConfig.Tube=tube
+			config.BeanstalkConfig.ReplyTubePrefix=reply
+		}
+	} else {
+		response := Response{"nodes node found"}
+		js, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, string(js), 200)
+		return
+	}
+
+	fmt.Printf("C: [%s]\n",str.String())
+	go realInstanceCreate(str.String())
+
+	// remove from FS
+	VmPath := fmt.Sprintf("/usr/local/cloud/%s/vm-%s", Cid,instanceid)
+	if fileExists(VmPath) {
+		b, err := ioutil.ReadFile(VmPath) // just pass the file name
+		if err != nil {
+			fmt.Printf("Error read UID from  [%s]\n",string(b))
+		}
+	}
+
+	response := Response{"started"}
+	js, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Error(w, string(js), 200)
+	return
+}
+
