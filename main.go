@@ -1,6 +1,4 @@
 // CBSD Project 2013-2021
-// bhyve-bhyve project 2021
-// Simple demo/sample for CBSD bhyve API
 package main
 
 import (
@@ -20,7 +18,6 @@ import (
 	"crypto/md5"
 	"os/exec"
 	"golang.org/x/crypto/ssh"
-//	"github.com/getsentry/sentry-go"
 )
 
 var lock = sync.RWMutex{}
@@ -42,18 +39,14 @@ type Vm struct {
 	Cpus		string	`"cpus,omitempty"`
 	Imgsize		string	`"imgsize,omitempty"`
 	Pubkey		string	`"pubkey,omitempty"`
-//	Email		string  `"email,omitempty"`
-//	Callback	string  `"callback,omitempty"`
 }
+
 // Todo: validate mod?
 //  e.g for simple check:
 //  bhyve_name  string `json:"name" validate:"required,min=2,max=100"`
-
 var (
 	body		= flag.String("body", "", "Body of message")
-// JAILS
-	cbsdEnv		= flag.String("cbsdenv", "/jails", "CBSD workdir environment")
-//	cbsdEnv		= flag.String("cbsdenv", "/usr/jails", "CBSD workdir environment")
+	cbsdEnv		= flag.String("cbsdenv", "/usr/jails", "CBSD workdir environment")
 	configFile	= flag.String("config", "/usr/local/etc/cbsd-mq-api.json", "Path to config.json")
 	listen *string	= flag.String("listen", "0.0.0.0:65531", "Listen host:port")
 	runScriptJail	= flag.String("runscript_jail", "jail-api", "CBSD target run script")
@@ -62,14 +55,17 @@ var (
 	startScript	= flag.String("start_script", "control-api", "CBSD target run script")
 	stopScript	= flag.String("stop_script", "control-api", "CBSD target run script")
 	serverUrl	= flag.String("server_url", "http://127.0.0.1:65532", "Server URL for external requests") 
+	dbDir		= flag.String("dbdir", "/var/db/cbsd-api", "db root dir")
 )
 
 func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
+//	info, err := os.Stat(filename)
+	_, err := os.Stat(filename)
 	if os.IsNotExist(err) {
 		return false
 	}
-	return !info.IsDir()
+//	return !info.IsDir()
+	return true
 }
 
 // main function to boot up everything
@@ -78,16 +74,7 @@ func main() {
 	flag.Parse()
 	var err error
 
-//	serr := sentry.Init(sentry.ClientOptions{
-//		Dsn: "https://<>",
-//	})
-//	if serr != nil {
-//		log.Fatalf("sentry.Init: %s", serr)
-//	}
-
 	config, err = LoadConfiguration(*configFile)
-
-//	sentry.CaptureException(err)
 
 	workdir=config.CbsdEnv
 	server_url=config.ServerUrl
@@ -105,6 +92,12 @@ func main() {
 		fmt.Printf("no such Freejname script, please check config/path: %s\n",config.Freejname)
 		os.Exit(1)
 	}
+
+	if !fileExists(*dbDir) {
+		fmt.Printf("db dir created: %s\n",*dbDir)
+		os.Mkdir(*dbDir, 0770)
+	}
+
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/create/{instanceid}", HandleClusterCreate).Methods("POST")
 	router.HandleFunc("/api/v1/status/{instanceid}", HandleClusterStatus).Methods("GET")
@@ -124,7 +117,7 @@ func HandleClusterStatus(w http.ResponseWriter, r *http.Request) {
 	var regexpInstanceId = regexp.MustCompile(`^[aA-zZ_]([aA-zZ0-9_])*$`)
 
 	Cid := r.Header.Get("cid")
-	HomePath := fmt.Sprintf("/usr/local/cloud/%s/vms", Cid)
+	HomePath := fmt.Sprintf("%s/%s/vms", *dbDir, Cid)
 	//fmt.Println("CID IS: [ %s ]", cid)
 	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
 		return
@@ -167,7 +160,7 @@ func HandleClusterStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	SqliteDBPath := fmt.Sprintf("/usr/local/cloud/%s/%s-bhyve.ssh", Cid,string(b))
+	SqliteDBPath := fmt.Sprintf("%s/%s/%s-bhyve.ssh", *dbDir, Cid,string(b))
 	if fileExists(SqliteDBPath) {
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
@@ -193,13 +186,13 @@ func HandleClusterStatus(w http.ResponseWriter, r *http.Request) {
 
 func HandleClusterCluster(w http.ResponseWriter, r *http.Request) {
 	Cid := r.Header.Get("cid")
-	HomePath := fmt.Sprintf("/usr/local/cloud/%s/vms", Cid)
+	HomePath := fmt.Sprintf("%s/%s/vms", *dbDir, Cid)
 	//fmt.Println("CID IS: [ %s ]", cid)
 	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
 		return
 	}
 
-	SqliteDBPath := fmt.Sprintf("/usr/local/cloud/%s/vm.list", Cid)
+	SqliteDBPath := fmt.Sprintf("%s/%s/vm.list", *dbDir, Cid)
 	if fileExists(SqliteDBPath) {
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
@@ -426,13 +419,15 @@ func HandleClusterCreate(w http.ResponseWriter, r *http.Request) {
 	//existance?
 	// check for existance
 	cid := md5.Sum(uid)
-	VmPathDir := fmt.Sprintf("/usr/local/cloud/%x", cid)
+	VmPathDir := fmt.Sprintf("%s/%x", *dbDir, cid)
 
 	if !fileExists(VmPathDir) {
 		os.Mkdir(VmPathDir, 0775)
 	}
 
-	VmPath := fmt.Sprintf("/usr/local/cloud/%x/vm-%s", cid,instanceid)
+	VmPath := fmt.Sprintf("%s/%x/vm-%s", *dbDir, cid,instanceid)
+	fmt.Println(*dbDir, "instance exist")
+
 	if fileExists(VmPath) {
 		response := Response{"vm already exist"}
 		js, err := json.Marshal(response)
@@ -548,7 +543,7 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 	var regexpInstanceId = regexp.MustCompile(`^[aA-zZ_]([aA-zZ0-9_])*$`)
 
 	Cid := r.Header.Get("cid")
-	HomePath := fmt.Sprintf("/usr/local/cloud/%s/vms", Cid)
+	HomePath := fmt.Sprintf("%s/%s/vms", *dbDir, Cid)
 	//fmt.Println("CID IS: [ %s ]", cid)
 	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
 		return
@@ -609,7 +604,7 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 	str.WriteString("}}");
 
 	//get guest nodes & tubes
-	SqliteDBPath := fmt.Sprintf("/usr/local/cloud/%s/%s.node", Cid,string(b))
+	SqliteDBPath := fmt.Sprintf("%s/%s/%s.node", *dbDir, Cid,string(b))
 	if fileExists(SqliteDBPath) {
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
@@ -644,7 +639,7 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// remove from FS
-	VmPath := fmt.Sprintf("/usr/local/cloud/%s/vm-%s", Cid,instanceid)
+	VmPath := fmt.Sprintf("%s/%s/vm-%s", *dbDir,Cid,instanceid)
 	if fileExists(VmPath) {
 		b, err := ioutil.ReadFile(VmPath) // just pass the file name
 		if err != nil {
@@ -654,15 +649,15 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("   REMOVE: %s\n",VmPath)
 			e = os.Remove(VmPath)
 
-			VmPath = fmt.Sprintf("/usr/local/cloud/%s/%s.node", Cid,string(b))
+			VmPath = fmt.Sprintf("%s/%s/%s.node", *dbDir,Cid,string(b))
 			fmt.Printf("   REMOVE: %s\n",VmPath)
 			e = os.Remove(VmPath)
 
-			VmPath = fmt.Sprintf("/usr/local/cloud/%s/%s-bhyve.ssh", Cid,string(b))
+			VmPath = fmt.Sprintf("%s/%s/%s-bhyve.ssh", *dbDir,Cid,string(b))
 			fmt.Printf("   REMOVE: %s\n",VmPath)
 			e = os.Remove(VmPath)
 
-			VmPath = fmt.Sprintf("/usr/local/cloud/%s/vms/%s", Cid,string(b))
+			VmPath = fmt.Sprintf("%s/%s/vms/%s", *dbDir,Cid,string(b))
 			fmt.Printf("   REMOVE: %s\n",VmPath)
 			e = os.Remove(VmPath)
 		}
@@ -685,7 +680,7 @@ func HandleClusterStop(w http.ResponseWriter, r *http.Request) {
 	var regexpInstanceId = regexp.MustCompile(`^[aA-zZ_]([aA-zZ0-9_])*$`)
 
 	Cid := r.Header.Get("cid")
-	HomePath := fmt.Sprintf("/usr/local/cloud/%s/vms", Cid)
+	HomePath := fmt.Sprintf("%s/%s/vms", *dbDir, Cid)
 	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
 		return
 	}
@@ -744,7 +739,7 @@ func HandleClusterStop(w http.ResponseWriter, r *http.Request) {
 	str.WriteString("}}");
 
 	//get guest nodes & tubes
-	SqliteDBPath := fmt.Sprintf("/usr/local/cloud/%s/%s.node", Cid,string(b))
+	SqliteDBPath := fmt.Sprintf("%s/%s/%s.node", *dbDir, Cid,string(b))
 	if fileExists(SqliteDBPath) {
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
@@ -781,7 +776,7 @@ func HandleClusterStop(w http.ResponseWriter, r *http.Request) {
 	go realInstanceCreate(str.String())
 
 	// remove from FS
-	VmPath := fmt.Sprintf("/usr/local/cloud/%s/vm-%s", Cid,instanceid)
+	VmPath := fmt.Sprintf("%s/%s/vm-%s", *dbDir, Cid,instanceid)
 	if fileExists(VmPath) {
 		b, err := ioutil.ReadFile(VmPath) // just pass the file name
 		if err != nil {
@@ -807,7 +802,7 @@ func HandleClusterStart(w http.ResponseWriter, r *http.Request) {
 	var regexpInstanceId = regexp.MustCompile(`^[aA-zZ_]([aA-zZ0-9_])*$`)
 
 	Cid := r.Header.Get("cid")
-	HomePath := fmt.Sprintf("/usr/local/cloud/%s/vms", Cid)
+	HomePath := fmt.Sprintf("%s/%s/vms", *dbDir,Cid)
 	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
 		return
 	}
@@ -866,7 +861,7 @@ func HandleClusterStart(w http.ResponseWriter, r *http.Request) {
 	str.WriteString("}}");
 
 	//get guest nodes & tubes
-	SqliteDBPath := fmt.Sprintf("/usr/local/cloud/%s/%s.node", Cid,string(b))
+	SqliteDBPath := fmt.Sprintf("%s/%s/%s.node", *dbDir,Cid,string(b))
 	if fileExists(SqliteDBPath) {
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
@@ -903,7 +898,7 @@ func HandleClusterStart(w http.ResponseWriter, r *http.Request) {
 	go realInstanceCreate(str.String())
 
 	// remove from FS
-	VmPath := fmt.Sprintf("/usr/local/cloud/%s/vm-%s", Cid,instanceid)
+	VmPath := fmt.Sprintf("%s/%s/vm-%s", *dbDir,Cid,instanceid)
 	if fileExists(VmPath) {
 		b, err := ioutil.ReadFile(VmPath) // just pass the file name
 		if err != nil {
