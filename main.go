@@ -608,7 +608,13 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 	if fileExists(SqliteDBPath) {
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
-			http.Error(w, "{}", 400)
+			response := Response{"unabe to read node map"}
+			js, err := json.Marshal(response)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			http.Error(w, string(js), http.StatusNotFound)
 			return
 		} else {
 			result := strings.Replace(string(b), ".", "_", -1)
@@ -627,7 +633,14 @@ func HandleClusterDestroy(w http.ResponseWriter, r *http.Request) {
 			config.BeanstalkConfig.ReplyTubePrefix=reply
 		}
 	} else {
-		http.Error(w, "{}", 400)
+		response := Response{"unabe to open node map"}
+		js, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, string(js), http.StatusNotFound)
+		return
 	}
 
 	fmt.Printf("C: [%s]\n",str.String())
