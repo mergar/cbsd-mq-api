@@ -1,6 +1,4 @@
 #!/bin/sh
-#echo -n "bob.your-server.de"
-#exit 0
 
 get_recomendation()
 {
@@ -57,5 +55,7 @@ if [ "${1}" = "lock" ]; then
 	exit 0
 else
 	# recursive execite via lockf wrapper
-	lockf -s -t10 /tmp/recomendation.lock /root/api/recomendation.sh lock $*
+	lockf -s -t10 /tmp/recomendation.lock /usr/local/cbsd/modules/api.d/misc/recomendation.sh lock $*
 fi
+
+exit 0
