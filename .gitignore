@@ -1,5 +1,4 @@
 .idea/
-./src
-./cbsd-mq-api
 src
+./cbsd-mq-api
 cbsd-mq-api
