@@ -309,22 +309,6 @@ func validateInstanceId(InstanceId string) bool {
 	}
 }
 
-func validateVmType(VmType string) bool {
-	var regexpVmType = regexp.MustCompile("^[a-z]+$")
-
-	//current valid values:
-	// 'jail', 'bhyve', 'xen', 'k8s'
-	if len(VmType) < 2 || len(VmType) > 7 {
-		return false
-	}
-
-	if regexpVmType.MatchString(VmType) {
-		return true
-	} else {
-		return false
-	}
-}
-
 func isPubKeyAllowed(feeds *MyFeeds, PubKey string) bool {
 	//ALLOWED?
 	var p *AllowList
@@ -790,15 +774,9 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	}
 
 	if len(vm.PkgList) > 1 {
-		if strings.Compare(vm.Type, "jail") == 0 {
-			if !regexpPkgList.MatchString(vm.PkgList) {
-				fmt.Printf("Error: wrong pkglist: [%s]\n", vm.PkgList)
-				JSONError(w, "pkglist should be valid form. valid form", http.StatusInternalServerError)
-				return
-			}
-		} else {
-			fmt.Printf("Error: Pkglist for jail type only: [%s]\n", vm.Type)
-			JSONError(w, "Pkglist for jail type only", http.StatusInternalServerError)
+		if !regexpPkgList.MatchString(vm.PkgList) {
+			fmt.Printf("Error: wrong pkglist: [%s]\n", vm.PkgList)
+			JSONError(w, "pkglist should be valid form. valid form", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -836,9 +814,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 		suggest = ""
 	}
 
-	// not for jail yet
-//	if strings.Compare(vm.Type, "bhyve") == 0 {
-		// master value validation
+	if len(vm.Cpus) > 0 {
 		cpus, err := strconv.Atoi(vm.Cpus)
 		fmt.Printf("C: [%s] [%d]\n", vm.Cpus, vm.Cpus)
 		if err != nil {
@@ -849,18 +825,20 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 			JSONError(w, "cpus valid range: 1-16", http.StatusInternalServerError)
 			return
 		}
-//	} else {
-//		vm.Cpus = "0"
-//	}
+	} else {
+		// unlimited for jail
+		vm.Cpus = "0"
+	}
 
-//	if strings.Compare(vm.Type, "bhyve") == 0 {
+	if len(vm.Ram) > 0 {
 		if !regexpSize.MatchString(vm.Ram) {
 			JSONError(w, "The ram should be valid form, 512m, 1g", http.StatusInternalServerError)
 			return
 		}
-//	} else {
-//		vm.Ram = "0"
-//	}
+	} else {
+		// unlimited for jail
+		vm.Ram = "0"
+	}
 
 	if !regexpSize.MatchString(vm.Imgsize) {
 		fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
@@ -1102,6 +1080,8 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 	case "jail":
 		runscript = *runScriptJail
 		fmt.Printf("JAIL TYPE by img: [%s]\n", vm.Image)
+		vm.Jname = InstanceId
+		HandleCreateVm(w,vm);
 	case "k8s":
 		runscript = *runScriptK8s
 		var cluster Cluster
