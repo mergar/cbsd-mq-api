@@ -1,5 +1,6 @@
 // CBSD Project 2013-2022
 // K8s-bhyve project 2020-2022
+// MyBee project 2021-2022
 package main
 
 import (
@@ -51,6 +52,8 @@ type Vm struct {
 	Extras        string `"extras,omitempty"`
 	Recomendation string `"recomendation,omitempty"`
 	Host_hostname string `"host_hostname,omitempty"`
+	Email         string `"email,omitempty"`
+	Callback      string `"callback,omitempty"`
 }
 
 // The cluster Type. Name of elements must match with jconf params
@@ -826,7 +829,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 			return
 		}
 	} else {
-		// unlimited for jail
+		// '0' for jail + unlim
 		vm.Cpus = "0"
 	}
 
