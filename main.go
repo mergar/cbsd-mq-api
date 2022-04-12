@@ -843,10 +843,22 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 		vm.Ram = "0"
 	}
 
-	if !regexpSize.MatchString(vm.Imgsize) {
-		fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
-		JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusInternalServerError)
-		return
+	switch vm.Image {
+	case "jail":
+		//Imgsize optional for jail type
+		if len(vm.Imgsize) > 0 {
+			if !regexpSize.MatchString(vm.Imgsize) {
+				fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
+				JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusInternalServerError)
+				return
+			}
+		}
+	default:
+		if !regexpSize.MatchString(vm.Imgsize) {
+			fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
+			JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	Jname := getJname()
