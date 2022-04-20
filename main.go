@@ -1013,6 +1013,8 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 	var InstanceId string
 	params := mux.Vars(r)
 
+	fmt.Println("create wakeup")
+
 	InstanceId = params["InstanceId"]
 	if !validateInstanceId(InstanceId) {
 		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
@@ -1026,7 +1028,7 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	fmt.Println("create wakeup")
+	fmt.Println("create wakeup2")
 
 	var vm Vm
 
@@ -1348,17 +1350,23 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		return
 	}
 
+	var init_workers int
+
 	// worker value valudation
-	init_workers, err := strconv.Atoi(cluster.Init_workers)
-	if err != nil {
-		response := Response{"Init_workers not a number"}
-		js, err := json.Marshal(response)
+	if len(cluster.Init_workers) > 1 {
+		init_workers, err = strconv.Atoi(cluster.Init_workers)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			response := Response{"Init_workers not a number"}
+			js, err := json.Marshal(response)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			http.Error(w, string(js), 400)
 			return
 		}
-		http.Error(w, string(js), 400)
-		return
+	} else {
+		init_workers = 0
 	}
 	if init_workers < 0 || init_workers > 10 {
 		response := Response{"Init_workers valid range: 0-10"}
@@ -1393,17 +1401,23 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		}
 	}
 
+	var pv_enable int
+
 	// pv_enable value validation
-	pv_enable, err := strconv.Atoi(cluster.Pv_enable)
-	if err != nil {
-		response := Response{"Pv_enable not a number"}
-		js, err := json.Marshal(response)
+	if len(cluster.Pv_enable) > 1 {
+		pv_enable, err = strconv.Atoi(cluster.Pv_enable)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			response := Response{"Pv_enable not a number"}
+			js, err := json.Marshal(response)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			http.Error(w, string(js), 400)
 			return
 		}
-		http.Error(w, string(js), 400)
-		return
+	} else {
+		pv_enable = 1
 	}
 	if pv_enable < 0 || pv_enable > 1 {
 		response := Response{"Pv_enable valid values: 0 or 1"}
@@ -1416,17 +1430,23 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		return
 	}
 
-	// pv_enable value validation
-	kubelet_master, err := strconv.Atoi(cluster.Kubelet_master)
-	if err != nil {
-		response := Response{"Kubelet_master not a number"}
-		js, err := json.Marshal(response)
+	var kubelet_master int
+
+	if len(cluster.Kubelet_master) > 1 {
+		// pv_enable value validation
+		kubelet_master, err = strconv.Atoi(cluster.Kubelet_master)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			response := Response{"Kubelet_master not a number"}
+			js, err := json.Marshal(response)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			http.Error(w, string(js), 400)
 			return
 		}
-		http.Error(w, string(js), 400)
-		return
+	} else {
+		kubelet_master = 1
 	}
 	if kubelet_master < 0 || kubelet_master > 1 {
 		response := Response{"Kubelet_master valid values: 0 or 1"}
