@@ -1210,13 +1210,16 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 //		return
 //	}
 
+
 	// Count+Limits per CID should be implemented here (database req).
 	ClusterTimePath := fmt.Sprintf("%s/%x.time", *k8sDbDir, cid)
-	if fileExists(ClusterTimePath) {
-		fmt.Printf("Error: limit of clusters per user has been exceeded: [%s]\n", ClusterTimePath)
-		JSONError(w, "limit of clusters per user has been exceeded: 1", http.StatusInternalServerError)
-		return
-	}
+
+	//!! FCP trial ONLY !!
+	//if fileExists(ClusterTimePath) {
+	//	fmt.Printf("Error: limit of clusters per user has been exceeded: [%s]\n", ClusterTimePath)
+	//	JSONError(w, "limit of clusters per user has been exceeded: 1", http.StatusInternalServerError)
+	//	return
+	//}
 
 	ClusterTime := time.Now().Unix()
 
