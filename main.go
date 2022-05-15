@@ -390,12 +390,10 @@ func (feeds *MyFeeds) HandleClusterStatus(w http.ResponseWriter, r *http.Request
 
 	var mapfile string
 
-//	HomePath := fmt.Sprintf("%s/%s/vms", *dbDir, Cid)
 	checkMapfile := fmt.Sprintf("%s/var/db/api/map/%s-%s", workdir, Cid, InstanceId)
 	if _, err := os.Stat(checkMapfile); os.IsNotExist(err) {
 		fmt.Printf("status: no such %s/%s/vms - check K8S...\n", *dbDir, Cid)
 		// check K8S dir
-//		checkHomePath = fmt.Sprintf("%s/%s/vms", *k8sDbDir, Cid)
 		checkMapfile = fmt.Sprintf("%s/var/db/k8s/map/%s-%s", workdir, Cid, InstanceId)
 		if _, err := os.Stat(checkMapfile); os.IsNotExist(err) {
 			JSONError(w, "not found", http.StatusNotFound)
@@ -404,14 +402,12 @@ func (feeds *MyFeeds) HandleClusterStatus(w http.ResponseWriter, r *http.Request
 			fmt.Printf("%s found - its K8S\n", checkMapfile)
 			// K8S instance
 			vmType = 1
-//			mapfile = fmt.Sprintf("%s/var/db/k8s/map/%s-%s", workdir, Cid, InstanceId)
 			mapfile = checkMapfile
 		}
 	} else {
 		//VM/jail instance
 		fmt.Printf("%s/%s/vms found - its not K8S\n", *dbDir, Cid)
 		vmType = 0
-		//mapfile = fmt.Sprintf("%s/var/db/api/map/%s-%s", workdir, Cid, InstanceId)
 		mapfile = checkMapfile
 	}
 
@@ -1637,23 +1633,25 @@ func (feeds *MyFeeds) HandleClusterDestroy(w http.ResponseWriter, r *http.Reques
 
 	var mapfile string
 
-	HomePath := fmt.Sprintf("%s/%s/vms", *dbDir, Cid)
-	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
+	checkMapfile := fmt.Sprintf("%s/var/db/api/map/%s-%s", workdir, Cid, InstanceId)
+	if _, err := os.Stat(checkMapfile); os.IsNotExist(err) {
+		fmt.Printf("status: no such %s/%s/vms - check K8S...\n", *dbDir, Cid)
 		// check K8S dir
-		HomePath = fmt.Sprintf("%s/%s/vms", *k8sDbDir, Cid)
-		if _, err := os.Stat(HomePath); os.IsNotExist(err) {
-			fmt.Println("path not found:", HomePath)
+		checkMapfile = fmt.Sprintf("%s/var/db/k8s/map/%s-%s", workdir, Cid, InstanceId)
+		if _, err := os.Stat(checkMapfile); os.IsNotExist(err) {
 			JSONError(w, "not found", http.StatusNotFound)
 			return
 		} else {
+			fmt.Printf("%s found - its K8S\n", checkMapfile)
 			// K8S instance
 			vmType = 1
-			mapfile = fmt.Sprintf("%s/var/db/k8s/map/%s-%s", workdir, Cid, InstanceId)
+			mapfile = checkMapfile
 		}
 	} else {
 		//VM/jail instance
+		fmt.Printf("%s/%s/vms found - its not K8S\n", *dbDir, Cid)
 		vmType = 0
-		mapfile = fmt.Sprintf("%s/var/db/api/map/%s-%s", workdir, Cid, InstanceId)
+		mapfile = checkMapfile
 	}
 
 	b, err := ioutil.ReadFile(mapfile) // just pass the file name
