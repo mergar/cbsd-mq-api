@@ -43,6 +43,8 @@ type Response struct {
 type Vm struct {
 	Image         string `json:image,omitempty"`
 	Type          string `json:type,omitempty"`
+	Vm_os_type    string `json:vm_os_type,omitempty"`
+	Vm_os_profile string `json:vm_os_profile,omitempty"`
 	Jname         string `json:jname,omitempty"`
 	Ram           string `json:ram,omitempty"`
 	Cpus          string `"cpus,omitempty"`
@@ -282,6 +284,7 @@ func main() {
 	router.HandleFunc("/api/v1/cluster", feeds.HandleClusterCluster).Methods("GET")
 	router.HandleFunc("/api/v1/k8scluster", feeds.HandleK8sClusterCluster).Methods("GET")
 	router.HandleFunc("/images", HandleClusterImages).Methods("GET")
+	router.HandleFunc("/flavors", HandleClusterFlavors).Methods("GET")
 
 	fmt.Println("* Listen", *listen)
 	fmt.Println("* Server URL", server_url)
@@ -666,6 +669,27 @@ func HandleClusterImages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func HandleClusterFlavors(w http.ResponseWriter, r *http.Request) {
+
+	if fileExists(config.Flavors_list) {
+		b, err := ioutil.ReadFile(config.Flavors_list) // just pass the file name
+		if err != nil {
+			JSONError(w, "", http.StatusNotFound)
+			return
+		} else {
+			// already in json - send as-is
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.WriteHeader(200)
+			http.Error(w, string(b), 200)
+			return
+		}
+	} else {
+		JSONError(w, "", http.StatusNotFound)
+		return
+	}
+}
+
 func realInstanceCreate(body string) {
 
 	a := &body
@@ -847,21 +871,21 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	}
 
 	switch vm.Image {
-	case "jail":
-		//Imgsize optional for jail type
-		if len(vm.Imgsize) > 0 {
+		case "jail":
+			//Imgsize optional for jail type
+			if len(vm.Imgsize) > 0 {
+				if !regexpSize.MatchString(vm.Imgsize) {
+					fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
+					JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusInternalServerError)
+					return
+				}
+			}
+		default:
 			if !regexpSize.MatchString(vm.Imgsize) {
 				fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
 				JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusInternalServerError)
 				return
 			}
-		}
-	default:
-		if !regexpSize.MatchString(vm.Imgsize) {
-			fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
-			JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusInternalServerError)
-			return
-		}
 	}
 
 	Jname := getJname()
@@ -934,18 +958,20 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 
 		// validate unknown data values
 		switch jconf_param {
-		case "type":
-		case "imgsize":
-		case "ram":
-		case "cpus":
-		case "pkglist":
-		case "pubkey":
-		case "host_hostname":
-		default:
-			if !regexpParamVal.MatchString(tmpval) {
-				fmt.Printf("Error: wrong paramval for %s: [%s]\n", jconf_param, tmpval)
-				continue
-			}
+			case "vm_os_type":
+			case "vm_os_profile":
+			case "type":
+			case "imgsize":
+			case "ram":
+			case "cpus":
+			case "pkglist":
+			case "pubkey":
+			case "host_hostname":
+			default:
+				if !regexpParamVal.MatchString(tmpval) {
+					fmt.Printf("Error: wrong paramval for %s: [%s]\n", jconf_param, tmpval)
+					continue
+				}
 		}
 
 		fmt.Printf("jconf: %s,\tField Name: %s,\t Field Value: %v,\t Tag Value: %s\n", jconf_param, typeField.Name, valueField.Interface(), tag.Get("tag_name"))
@@ -1046,6 +1072,19 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 	if err := json.Unmarshal(body, &vm); err != nil {
 		log.Printf("unmarsahal to &vm error %v", err)
 		return
+	}
+
+	switch vm.Vm_os_type {
+		case "":
+		default:
+			fmt.Printf("Bhyve VM_OS_TYPE set: [%s]\n", vm.Vm_os_type)
+			vm.Image="bhyve"
+	}
+	switch vm.Vm_os_profile {
+		case "":
+		default:
+			fmt.Printf("Bhyve VM_OS_PROFILE set: [%s]\n", vm.Vm_os_profile)
+			vm.Image="bhyve"
 	}
 
 	switch vm.Image {

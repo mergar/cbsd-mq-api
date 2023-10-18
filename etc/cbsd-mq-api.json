@@ -8,6 +8,7 @@
     "server_url": "http://127.0.0.1:65531",
     "cloud_images_list": "/usr/local/etc/cbsd_api_cloud_images.json",
     "iso_images_list": "/usr/local/etc/cbsd_api_iso_images.json",
+    "flavors_list": "/usr/local/etc/cbsd_flavors.json",
     "beanstalkd": {
       "uri": "127.0.0.1:11300",
       "tube": "cbsd_mother_olevole_ru",
