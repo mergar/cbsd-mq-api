@@ -158,12 +158,12 @@ func JSONError(w http.ResponseWriter, message string, code int) {
 		response := Response{message}
 		js, err := json.Marshal(response)
 		if err != nil {
-			fmt.Fprintln(w, "{\"Message\":\"Marshal error\"}", http.StatusInternalServerError)
+			fmt.Fprintln(w, "{\"Message\":\"Marshal error\"}", http.StatusMethodNotAllowed)
 			return
 		}
 		http.Error(w, string(js), code)
 	} else {
-		http.Error(w, "{}", http.StatusNotFound)
+		http.Error(w, "{}", http.StatusOK)
 	}
 	return
 }
@@ -375,19 +375,19 @@ func (feeds *MyFeeds) HandleClusterStatus(w http.ResponseWriter, r *http.Request
 
 	InstanceId = params["InstanceId"]
 	if !validateInstanceId(InstanceId) {
-		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
 
 	Cid := r.Header.Get("cid")
 	if !validateCid(Cid) {
-		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusNotFound)
+		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !isCidAllowed(feeds, Cid) {
 		fmt.Printf("CID not in ACL: %s\n", Cid)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -399,7 +399,7 @@ func (feeds *MyFeeds) HandleClusterStatus(w http.ResponseWriter, r *http.Request
 		// check K8S dir
 		checkMapfile = fmt.Sprintf("%s/var/db/k8s/map/%s-%s", workdir, Cid, InstanceId)
 		if _, err := os.Stat(checkMapfile); os.IsNotExist(err) {
-			JSONError(w, "not found", http.StatusNotFound)
+			JSONError(w, "not found", http.StatusOK)
 			return
 		} else {
 			fmt.Printf("%s found - its K8S\n", checkMapfile)
@@ -417,7 +417,7 @@ func (feeds *MyFeeds) HandleClusterStatus(w http.ResponseWriter, r *http.Request
 	b, err := ioutil.ReadFile(mapfile) // just pass the file name
 	if err != nil {
 		fmt.Printf("unable to read jname from: [%s]/var/db/api/map/%s-%s\n", mapfile)
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
@@ -443,7 +443,7 @@ func (feeds *MyFeeds) HandleClusterStatus(w http.ResponseWriter, r *http.Request
 			return
 		}
 	} else {
-		JSONError(w, "", http.StatusNotFound)
+		JSONError(w, "", http.StatusOK)
 	}
 }
 
@@ -453,25 +453,25 @@ func (feeds *MyFeeds) HandleK8sClusterStatus(w http.ResponseWriter, r *http.Requ
 
 	InstanceId = params["InstanceId"]
 	if !validateInstanceId(InstanceId) {
-		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
 
 	Cid := r.Header.Get("cid")
 	if !validateCid(Cid) {
-		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusNotFound)
+		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !isCidAllowed(feeds, Cid) {
 		fmt.Printf("CID not in ACL: %s\n", Cid)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	HomePath := fmt.Sprintf("%s/%s/vms", *k8sDbDir, Cid)
 	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
@@ -479,14 +479,14 @@ func (feeds *MyFeeds) HandleK8sClusterStatus(w http.ResponseWriter, r *http.Requ
 
 	if !fileExists(config.Recomendation) {
 		fmt.Printf("no such map file %s/var/db/k8s/map/%s-%s\n", workdir, Cid, InstanceId)
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
 	b, err := ioutil.ReadFile(mapfile) // just pass the file name
 	if err != nil {
 		fmt.Printf("unable to read jname from %s/var/db/k8s/map/%s-%s\n", workdir, Cid, InstanceId)
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
@@ -505,7 +505,7 @@ func (feeds *MyFeeds) HandleK8sClusterStatus(w http.ResponseWriter, r *http.Requ
 			return
 		}
 	} else {
-		JSONError(w, "", http.StatusNotFound)
+		JSONError(w, "", http.StatusOK)
 	}
 }
 
@@ -515,19 +515,19 @@ func (feeds *MyFeeds) HandleClusterKubeConfig(w http.ResponseWriter, r *http.Req
 
 	InstanceId = params["InstanceId"]
 	if !validateInstanceId(InstanceId) {
-		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
 
 	Cid := r.Header.Get("cid")
 	if !validateCid(Cid) {
-		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusNotFound)
+		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !isCidAllowed(feeds, Cid) {
 		fmt.Printf("CID not in ACL: %s\n", Cid)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -550,7 +550,7 @@ func (feeds *MyFeeds) HandleClusterKubeConfig(w http.ResponseWriter, r *http.Req
 			b, err := ioutil.ReadFile(kubeFile) // just pass the file name
 			if err != nil {
 				fmt.Printf("unable to read content %s\n", kubeFile)
-				JSONError(w, "", http.StatusNotFound)
+				JSONError(w, "", http.StatusOK)
 				return
 			}
 			w.Header().Set("Content-Type", "text/plain")
@@ -569,13 +569,13 @@ func (feeds *MyFeeds) HandleClusterKubeConfig(w http.ResponseWriter, r *http.Req
 func (feeds *MyFeeds) HandleClusterCluster(w http.ResponseWriter, r *http.Request) {
 	Cid := r.Header.Get("cid")
 	if !validateCid(Cid) {
-		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusNotFound)
+		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !isCidAllowed(feeds, Cid) {
 		fmt.Printf("CID not in ACL: %s\n", Cid)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -583,7 +583,7 @@ func (feeds *MyFeeds) HandleClusterCluster(w http.ResponseWriter, r *http.Reques
 	//fmt.Println("CID IS: [ %s ]", cid)
 	
 	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
-		JSONError(w, "", http.StatusNotFound)
+		JSONError(w, "", http.StatusOK)
 		return
 	}
 
@@ -591,7 +591,7 @@ func (feeds *MyFeeds) HandleClusterCluster(w http.ResponseWriter, r *http.Reques
 	if fileExists(SqliteDBPath) {
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
-			JSONError(w, "", http.StatusNotFound)
+			JSONError(w, "", http.StatusOK)
 			return
 		} else {
 			// already in json - send as-is
@@ -602,7 +602,7 @@ func (feeds *MyFeeds) HandleClusterCluster(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	} else {
-		JSONError(w, "", http.StatusNotFound)
+		JSONError(w, "", http.StatusOK)
 		return
 	}
 }
@@ -611,20 +611,20 @@ func (feeds *MyFeeds) HandleClusterCluster(w http.ResponseWriter, r *http.Reques
 func (feeds *MyFeeds) HandleK8sClusterCluster(w http.ResponseWriter, r *http.Request) {
 	Cid := r.Header.Get("cid")
 	if !validateCid(Cid) {
-		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusNotFound)
+		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !isCidAllowed(feeds, Cid) {
 		fmt.Printf("CID not in ACL: %s\n", Cid)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	HomePath := fmt.Sprintf("%s/%s/vms", *k8sDbDir, Cid)
 	//fmt.Println("CID IS: [ %s ]", cid)
 	if _, err := os.Stat(HomePath); os.IsNotExist(err) {
-		JSONError(w, "", http.StatusNotFound)
+		JSONError(w, "", http.StatusOK)
 		return
 	}
 
@@ -632,7 +632,7 @@ func (feeds *MyFeeds) HandleK8sClusterCluster(w http.ResponseWriter, r *http.Req
 	if fileExists(SqliteDBPath) {
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
-			JSONError(w, "", http.StatusNotFound)
+			JSONError(w, "", http.StatusOK)
 			return
 		} else {
 			// already in json - send as-is
@@ -643,7 +643,7 @@ func (feeds *MyFeeds) HandleK8sClusterCluster(w http.ResponseWriter, r *http.Req
 			return
 		}
 	} else {
-		JSONError(w, "", http.StatusNotFound)
+		JSONError(w, "", http.StatusOK)
 		return
 	}
 }
@@ -653,7 +653,7 @@ func HandleClusterImages(w http.ResponseWriter, r *http.Request) {
 	if fileExists(config.Cloud_images_list) {
 		b, err := ioutil.ReadFile(config.Cloud_images_list) // just pass the file name
 		if err != nil {
-			JSONError(w, "", http.StatusNotFound)
+			JSONError(w, "", http.StatusOK)
 			return
 		} else {
 			// already in json - send as-is
@@ -664,7 +664,7 @@ func HandleClusterImages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		JSONError(w, "", http.StatusNotFound)
+		JSONError(w, "", http.StatusOK)
 		return
 	}
 }
@@ -674,7 +674,7 @@ func HandleClusterFlavors(w http.ResponseWriter, r *http.Request) {
 	if fileExists(config.Flavors_list) {
 		b, err := ioutil.ReadFile(config.Flavors_list) // just pass the file name
 		if err != nil {
-			JSONError(w, "", http.StatusNotFound)
+			JSONError(w, "", http.StatusOK)
 			return
 		} else {
 			// already in json - send as-is
@@ -685,7 +685,7 @@ func HandleClusterFlavors(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		JSONError(w, "", http.StatusNotFound)
+		JSONError(w, "", http.StatusOK)
 		return
 	}
 }
@@ -791,7 +791,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 
 	if fileExists(VmPath) {
 		fmt.Printf("Error: vm already exist: [%s]\n", VmPath)
-		JSONError(w, "vm already exist", http.StatusInternalServerError)
+		JSONError(w, "vm already exist", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -806,7 +806,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	if len(vm.PkgList) > 1 {
 		if !regexpPkgList.MatchString(vm.PkgList) {
 			fmt.Printf("Error: wrong pkglist: [%s]\n", vm.PkgList)
-			JSONError(w, "pkglist should be valid form. valid form", http.StatusInternalServerError)
+			JSONError(w, "pkglist should be valid form. valid form", http.StatusMethodNotAllowed)
 			return
 		}
 	}
@@ -814,7 +814,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	if len(vm.Host_hostname) > 1 {
 		if !regexpHostName.MatchString(vm.Host_hostname) {
 			fmt.Printf("Error: wrong hostname: [%s]\n", vm.Host_hostname)
-			JSONError(w, "host_hostname should be valid form. valid form", http.StatusInternalServerError)
+			JSONError(w, "host_hostname should be valid form. valid form", http.StatusMethodNotAllowed)
 			return
 		} else {
 			fmt.Printf("Found host_hostname: [%s]\n", vm.Host_hostname)
@@ -824,7 +824,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	if len(vm.Extras) > 1 {
 		if !regexpExtras.MatchString(vm.Extras) {
 			fmt.Printf("Error: wrong extras: [%s]\n", vm.Extras)
-			JSONError(w, "extras should be valid form. valid form", http.StatusInternalServerError)
+			JSONError(w, "extras should be valid form. valid form", http.StatusMethodNotAllowed)
 			return
 		} else {
 			fmt.Printf("Found extras: [%s]\n", vm.Extras)
@@ -834,7 +834,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	if len(vm.Recomendation) > 1 {
 		if !regexpHostName.MatchString(vm.Recomendation) {
 			fmt.Printf("Error: wrong hostname recomendation: [%s]\n", vm.Recomendation)
-			JSONError(w, "recomendation should be valid form. valid form", http.StatusInternalServerError)
+			JSONError(w, "recomendation should be valid form. valid form", http.StatusMethodNotAllowed)
 			return
 		} else {
 			fmt.Printf("Found vm recomendation: [%s]\n", vm.Recomendation)
@@ -848,11 +848,11 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 		cpus, err := strconv.Atoi(vm.Cpus)
 		fmt.Printf("C: [%s] [%d]\n", vm.Cpus, vm.Cpus)
 		if err != nil {
-			JSONError(w, "cpus not a number", http.StatusInternalServerError)
+			JSONError(w, "cpus not a number", http.StatusMethodNotAllowed)
 			return
 		}
 		if cpus <= 0 || cpus > 10 {
-			JSONError(w, "cpus valid range: 1-16", http.StatusInternalServerError)
+			JSONError(w, "cpus valid range: 1-16", http.StatusMethodNotAllowed)
 			return
 		}
 	} else {
@@ -862,7 +862,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 
 	if len(vm.Ram) > 0 {
 		if !regexpSize.MatchString(vm.Ram) {
-			JSONError(w, "The ram should be valid form, 512m, 1g", http.StatusInternalServerError)
+			JSONError(w, "The ram should be valid form, 512m, 1g", http.StatusMethodNotAllowed)
 			return
 		}
 	} else {
@@ -876,14 +876,14 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 			if len(vm.Imgsize) > 0 {
 				if !regexpSize.MatchString(vm.Imgsize) {
 					fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
-					JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusInternalServerError)
+					JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusMethodNotAllowed)
 					return
 				}
 			}
 		default:
 			if !regexpSize.MatchString(vm.Imgsize) {
 				fmt.Printf("wrong imgsize: [%s] [%d]\n", vm.Imgsize, vm.Imgsize)
-				JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusInternalServerError)
+				JSONError(w, "The imgsize should be valid form: 2g, 30g", http.StatusMethodNotAllowed)
 				return
 			}
 	}
@@ -994,7 +994,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	response := fmt.Sprintf("{ \"cluster\": \"curl -H cid:%x %s/api/v1/cluster\", \"status\": \"curl -H cid:%x %s/api/v1/status/%s\", \"start\": \"curl -H cid:%x %s/api/v1/start/%s\", \"stop\": \"curl -H cid:%x %s/api/v1/stop/%s\", \"destroy\": \"curl -H cid:%x %s/api/v1/destroy/%s\" }", cid, server_url, cid, server_url, InstanceId, cid, server_url, InstanceId, cid, server_url, InstanceId, cid, server_url, InstanceId)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1046,14 +1046,14 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 
 	InstanceId = params["InstanceId"]
 	if !validateInstanceId(InstanceId) {
-		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var regexpPubkey = regexp.MustCompile("^(ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-[^ ]+) ([^ ]+) ?(.*)")
 
 	if r.Body == nil {
-		JSONError(w, "please send a request body", http.StatusInternalServerError)
+		JSONError(w, "please send a request body", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1090,7 +1090,7 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 	switch vm.Image {
 	case "":
 		fmt.Println("Empty image field")
-		JSONError(w, "Empty image field", http.StatusInternalServerError)
+		JSONError(w, "Empty image field", http.StatusMethodNotAllowed)
 		return
 	case "jail":
 		fmt.Printf("JAIL TYPE by img: [%s]\n", vm.Image)
@@ -1102,19 +1102,19 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 
 	if len(vm.Pubkey) < 30 {
 		fmt.Printf("Error: Pubkey too small: [%s]\n",vm.Pubkey)
-		JSONError(w, "Pubkey too small", http.StatusInternalServerError)
+		JSONError(w, "Pubkey too small", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if len(vm.Pubkey) > 1000 {
 		fmt.Printf("Error: Pubkey too long\n")
-		JSONError(w, "Pubkey too long", http.StatusInternalServerError)
+		JSONError(w, "Pubkey too long", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !regexpPubkey.MatchString(vm.Pubkey) {
 		fmt.Printf("Error: pubkey should be valid form. valid key: ssh-rsa,ssh-ed25519,ecdsa-*,ssh-dsa XXXXX comment\n")
-		JSONError(w, "pubkey should be valid form. valid key: ssh-rsa,ssh-ed25519,ecdsa-*,ssh-dsa XXXXX comment", http.StatusInternalServerError)
+		JSONError(w, "pubkey should be valid form. valid key: ssh-rsa,ssh-ed25519,ecdsa-*,ssh-dsa XXXXX comment", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1122,7 +1122,7 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 	if err != nil {
 
 		fmt.Printf("Error: ParseAuthorizedKey\n")
-		JSONError(w, "ParseAuthorizedKey", http.StatusInternalServerError)
+		JSONError(w, "ParseAuthorizedKey", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1130,7 +1130,7 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 
 	if !isPubKeyAllowed(feeds, vm.Pubkey) {
 		fmt.Printf("Pubkey not in ACL: %s\n", vm.Pubkey)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1174,7 +1174,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		fd, err := os.Open(ClusterQueuePath)
 		if err != nil {
 			fmt.Printf("unable to read current queue len from %s\n", ClusterQueuePath)
-			JSONError(w, "limits exceeded, please try again later", http.StatusNotFound)
+			JSONError(w, "limits exceeded, please try again later", http.StatusMethodNotAllowed)
 			return
 		}
 		defer fd.Close()
@@ -1184,7 +1184,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 			if err != io.EOF {
 				//log.Fatal(err)
 				fmt.Printf("unable to read jname from %s\n", ClusterQueuePath)
-				JSONError(w, "limits exceeded, please try again later", http.StatusNotFound)
+				JSONError(w, "limits exceeded, please try again later", http.StatusMethodNotAllowed)
 				return
 			}
 		}
@@ -1192,13 +1192,13 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		fmt.Printf("Current QUEUE: [%d]\n", CurrentQueue)
 		if CurrentQueue >= clusterLimitMax {
 			fmt.Printf("limits exceeded: (%d max)\n", clusterLimitMax)
-			JSONError(w, "limits exceeded, please try again later", http.StatusNotFound)
+			JSONError(w, "limits exceeded, please try again later", http.StatusMethodNotAllowed)
 			return
 		}
 	}
 
 	if !validateInstanceId(InstanceId) {
-		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1216,26 +1216,26 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 
 	if len(cluster.Pubkey) < 30 {
 		fmt.Printf("Error: Pubkey data too small: [%s]\n", cluster.Pubkey)
-		JSONError(w, "Pubkey too small", http.StatusInternalServerError)
+		JSONError(w, "Pubkey too small", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if len(cluster.Pubkey) > 1000 {
 		fmt.Printf("Error: Pubkey too long\n")
-		JSONError(w, "Pubkey too long", http.StatusInternalServerError)
+		JSONError(w, "Pubkey too long", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !regexpPubkey.MatchString(cluster.Pubkey) {
 		fmt.Printf("Error: pubkey should be valid form. valid key: ssh-rsa,ssh-ed25519,ecdsa-*,ssh-dsa XXXXX comment\n")
-		JSONError(w, "pubkey should be valid form. valid key: ssh-rsa,ssh-ed25519,ecdsa-*,ssh-dsa XXXXX comment", http.StatusInternalServerError)
+		JSONError(w, "pubkey should be valid form. valid key: ssh-rsa,ssh-ed25519,ecdsa-*,ssh-dsa XXXXX comment", http.StatusMethodNotAllowed)
 		return
 	}
 
 	parsedKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(cluster.Pubkey))
 	if err != nil {
 		fmt.Printf("Error: ParseAuthorizedKey\n")
-		JSONError(w, "ParseAuthorizedKey", http.StatusInternalServerError)
+		JSONError(w, "ParseAuthorizedKey", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1248,7 +1248,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 
 //	if !isPubKeyAllowed(feeds, cluster.Pubkey) {
 //		fmt.Printf("Pubkey not in ACL: %s\n", cluster.Pubkey)
-//		JSONError(w, "not allowed", http.StatusInternalServerError)
+//		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 //		return
 //	}
 
@@ -1259,7 +1259,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 	//!! FCP trial ONLY !!
 	//if fileExists(ClusterTimePath) {
 	//	fmt.Printf("Error: limit of clusters per user has been exceeded: [%s]\n", ClusterTimePath)
-	//	JSONError(w, "limit of clusters per user has been exceeded: 1", http.StatusInternalServerError)
+	//	JSONError(w, "limit of clusters per user has been exceeded: 1", http.StatusMethodNotAllowed)
 	//	return
 	//}
 
@@ -1284,7 +1284,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 
 	if fileExists(ClusterPath) {
 		fmt.Printf("Error: cluster already exist: [%s]\n", ClusterPath)
-		JSONError(w, "cluster already exist", http.StatusInternalServerError)
+		JSONError(w, "cluster already exist", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1299,7 +1299,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 	if len(cluster.Recomendation) > 1 {
 		if !regexpHostName.MatchString(cluster.Recomendation) {
 			fmt.Printf("Error: wrong hostname recomendation: [%s]\n", cluster.Recomendation)
-			JSONError(w, "recomendation should be valid form. valid form", http.StatusInternalServerError)
+			JSONError(w, "recomendation should be valid form. valid form", http.StatusMethodNotAllowed)
 			return
 		} else {
 			fmt.Printf("Found cluster recomendation: [%s]\n", cluster.Recomendation)
@@ -1314,7 +1314,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 			response := Response{"email should be valid form"}
 			js, err := json.Marshal(response)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 				return
 			}
 			http.Error(w, string(js), 400)
@@ -1327,7 +1327,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 			response := Response{"callback should be valid form"}
 			js, err := json.Marshal(response)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 				return
 			}
 			http.Error(w, string(js), 400)
@@ -1357,7 +1357,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		response := Response{"Init_masters not a number"}
 		js, err := json.Marshal(response)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 		http.Error(w, string(js), 400)
@@ -1367,7 +1367,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		response := Response{"Init_masters valid range: 1-10"}
 		js, err := json.Marshal(response)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 		http.Error(w, string(js), 400)
@@ -1378,7 +1378,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		response := Response{"The master_vm_ram should be valid form, 512m, 1g"}
 		js, err := json.Marshal(response)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 		http.Error(w, string(js), 400)
@@ -1388,7 +1388,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		response := Response{"The master_vm_imgsize should be valid form, 2g, 30g"}
 		js, err := json.Marshal(response)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 		http.Error(w, string(js), 400)
@@ -1404,7 +1404,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 			response := Response{"Init_workers not a number"}
 			js, err := json.Marshal(response)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 				return
 			}
 			http.Error(w, string(js), 400)
@@ -1417,7 +1417,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		response := Response{"Init_workers valid range: 0-10"}
 		js, err := json.Marshal(response)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 		http.Error(w, string(js), 400)
@@ -1428,7 +1428,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 			response := Response{"The workers_vm_ram should be valid form, 512m, 1g"}
 			js, err := json.Marshal(response)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 				return
 			}
 			http.Error(w, string(js), 400)
@@ -1438,7 +1438,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 			response := Response{"The worker_vm_imgsize should be valid form, 2g, 30g"}
 			js, err := json.Marshal(response)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 				return
 			}
 			http.Error(w, string(js), 400)
@@ -1455,7 +1455,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 			response := Response{"Pv_enable not a number"}
 			js, err := json.Marshal(response)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 				return
 			}
 			http.Error(w, string(js), 400)
@@ -1468,7 +1468,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		response := Response{"Pv_enable valid values: 0 or 1"}
 		js, err := json.Marshal(response)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 		http.Error(w, string(js), 400)
@@ -1484,7 +1484,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 			response := Response{"Kubelet_master not a number"}
 			js, err := json.Marshal(response)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 				return
 			}
 			http.Error(w, string(js), 400)
@@ -1497,7 +1497,7 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		response := Response{"Kubelet_master valid values: 0 or 1"}
 		js, err := json.Marshal(response)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusMethodNotAllowed)
 			return
 		}
 		http.Error(w, string(js), 400)
@@ -1654,19 +1654,19 @@ func (feeds *MyFeeds) HandleClusterDestroy(w http.ResponseWriter, r *http.Reques
 	InstanceId = params["InstanceId"]
 
 	if !validateInstanceId(InstanceId) {
-		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
 
 	Cid := r.Header.Get("cid")
 	if !validateCid(Cid) {
-		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusNotFound)
+		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !isCidAllowed(feeds, Cid) {
 		fmt.Printf("CID not in ACL: %s\n", Cid)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1678,7 +1678,7 @@ func (feeds *MyFeeds) HandleClusterDestroy(w http.ResponseWriter, r *http.Reques
 		// check K8S dir
 		checkMapfile = fmt.Sprintf("%s/var/db/k8s/map/%s-%s", workdir, Cid, InstanceId)
 		if _, err := os.Stat(checkMapfile); os.IsNotExist(err) {
-			JSONError(w, "not found", http.StatusNotFound)
+			JSONError(w, "not found", http.StatusOK)
 			return
 		} else {
 			fmt.Printf("%s found - its K8S\n", checkMapfile)
@@ -1696,7 +1696,7 @@ func (feeds *MyFeeds) HandleClusterDestroy(w http.ResponseWriter, r *http.Reques
 	b, err := ioutil.ReadFile(mapfile) // just pass the file name
 	if err != nil {
 		fmt.Printf("unable to read jname from map file: [%s]\n", mapfile)
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
@@ -1735,7 +1735,7 @@ func (feeds *MyFeeds) HandleClusterDestroy(w http.ResponseWriter, r *http.Reques
 		b, err := ioutil.ReadFile(SqliteDBPath) // just pass the file name
 		if err != nil {
 			fmt.Printf("unable to read node map: %s\n", SqliteDBPath)
-			JSONError(w, "unable to read node map", http.StatusNotFound)
+			JSONError(w, "unable to read node map", http.StatusOK)
 			return
 		} else {
 			result := strings.Replace(string(b), ".", "_", -1)
@@ -1749,7 +1749,7 @@ func (feeds *MyFeeds) HandleClusterDestroy(w http.ResponseWriter, r *http.Reques
 		}
 	} else {
 		fmt.Printf("unable to read node map: %s\n", SqliteDBPath)
-		JSONError(w, "unable to read node map", http.StatusNotFound)
+		JSONError(w, "unable to read node map", http.StatusOK)
 		return
 	}
 
@@ -1825,19 +1825,19 @@ func (feeds *MyFeeds) HandleClusterStop(w http.ResponseWriter, r *http.Request) 
 
 	InstanceId = params["InstanceId"]
 	if !validateInstanceId(InstanceId) {
-		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
 
 	Cid := r.Header.Get("cid")
 	if !validateCid(Cid) {
-		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusNotFound)
+		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !isCidAllowed(feeds, Cid) {
 		fmt.Printf("CID not in ACL: %s\n", Cid)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1850,14 +1850,14 @@ func (feeds *MyFeeds) HandleClusterStop(w http.ResponseWriter, r *http.Request) 
 
 	if !fileExists(config.Recomendation) {
 		fmt.Printf("no such map file %s/var/db/api/map/%s-%s\n", workdir, Cid, InstanceId)
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
 	b, err := ioutil.ReadFile(mapfile) // just pass the file name
 	if err != nil {
 		fmt.Printf("unable to read jname from %s/var/db/api/map/%s-%s\n", workdir, Cid, InstanceId)
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
@@ -1899,7 +1899,7 @@ func (feeds *MyFeeds) HandleClusterStop(w http.ResponseWriter, r *http.Request) 
 			config.BeanstalkConfig.ReplyTubePrefix = reply
 		}
 	} else {
-		JSONError(w, "nodes not found", http.StatusNotFound)
+		JSONError(w, "nodes not found", http.StatusOK)
 		return
 	}
 
@@ -1925,19 +1925,19 @@ func (feeds *MyFeeds) HandleClusterStart(w http.ResponseWriter, r *http.Request)
 
 	InstanceId = params["InstanceId"]
 	if !validateInstanceId(InstanceId) {
-		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusNotFound)
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
 
 	Cid := r.Header.Get("cid")
 	if !validateCid(Cid) {
-		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusNotFound)
+		JSONError(w, "The cid should be valid form: ^[a-f0-9]{32}$", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if !isCidAllowed(feeds, Cid) {
 		fmt.Printf("CID not in ACL: %s\n", Cid)
-		JSONError(w, "not allowed", http.StatusInternalServerError)
+		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1951,14 +1951,14 @@ func (feeds *MyFeeds) HandleClusterStart(w http.ResponseWriter, r *http.Request)
 
 	if !fileExists(config.Recomendation) {
 		fmt.Printf("no such map file %s/var/db/api/map/%s-%s\n", workdir, Cid, InstanceId)
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
 	b, err := ioutil.ReadFile(mapfile) // just pass the file name
 	if err != nil {
 		fmt.Printf("unable to read jname from %s/var/db/api/map/%s-%s\n", workdir, Cid, InstanceId)
-		JSONError(w, "not found", http.StatusNotFound)
+		JSONError(w, "not found", http.StatusOK)
 		return
 	}
 
@@ -2000,7 +2000,7 @@ func (feeds *MyFeeds) HandleClusterStart(w http.ResponseWriter, r *http.Request)
 			config.BeanstalkConfig.ReplyTubePrefix = reply
 		}
 	} else {
-		JSONError(w, "nodes not found", http.StatusNotFound)
+		JSONError(w, "nodes not found", http.StatusOK)
 		return
 	}
 
