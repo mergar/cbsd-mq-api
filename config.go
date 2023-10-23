@@ -13,6 +13,7 @@ type Config struct {
 	ImageList		string	`json:"imagelist"`
 	Recomendation		string	`json:"recomendation"`
 	Freejname		string	`json:"freejname"`
+	Freeid			string	`json:"freeid"`
 	Cloud_images_list	string	`json:"cloud_images_list"`
 	Iso_images_list		string	`json:"iso_images_list"`
 	Flavors_list		string	`json:"flavors_list"`

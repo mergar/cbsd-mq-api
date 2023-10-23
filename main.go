@@ -756,6 +756,21 @@ func getJname() string {
 	return result
 }
 
+func getId(cid string) string {
+	cmdStr := fmt.Sprintf("%s", config.Freeid)
+	cmdArgs := strings.Fields(cmdStr)
+//	cmd := exec.Command(cmdArgs[0], cmdArgs[1:len(cmdArgs)]...)
+	cmd := exec.Command(cmdArgs[0], cid)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("get freeid script failed")
+		return ""
+	}
+	result := (string(out))
+	fmt.Printf("Freeid Recomendation: [%s]\n", result)
+	return result
+}
+
 
 //func (feeds *MyFeeds) HandleClusterCluster(w http.ResponseWriter, r *http.Request) {
 //func HandleClusterCreate(w http.ResponseWriter, r *http.Request) {
@@ -1050,6 +1065,7 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+
 	var regexpPubkey = regexp.MustCompile("^(ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-[^ ]+) ([^ ]+) ?(.*)")
 
 	if r.Body == nil {
@@ -1133,6 +1149,34 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	uid := []byte(vm.Pubkey)
+	Cid := md5.Sum(uid)
+
+//	VmPathDir := fmt.Sprintf("%s/%x", *dbDir, cid)
+
+//var totalinf interface{}
+
+//	var v interface{}
+//json.Unmarshal(jsonData, &v)
+//data := v.(map[string]interface{})
+
+	// auto-naming
+	if InstanceId[0] == '_' {
+		//sCid := string(Cid[:])
+		sCid := fmt.Sprintf("%x", Cid)
+
+		InstanceId = getId(sCid)
+		if len(InstanceId) < 1 {
+			fmt.Printf("Unable to get ID for CID: %s\n", sCid, vm.Pubkey)
+			JSONError(w, "Unable to get ID", http.StatusMethodNotAllowed)
+			return
+		}
+
+		fmt.Printf("GET NEXT FREE Id for [%s]: [%s]\n",sCid,InstanceId)
+		return
+	}
+
 
 	// route to subfunctim
 	switch vm.Image {
