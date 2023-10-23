@@ -1006,7 +1006,7 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 
 	str.WriteString("\"}}")
 	fmt.Printf("CMD: [%s]\n", str.String())
-	response := fmt.Sprintf("{ \"cluster\": \"curl -H cid:%x %s/api/v1/cluster\", \"status\": \"curl -H cid:%x %s/api/v1/status/%s\", \"start\": \"curl -H cid:%x %s/api/v1/start/%s\", \"stop\": \"curl -H cid:%x %s/api/v1/stop/%s\", \"destroy\": \"curl -H cid:%x %s/api/v1/destroy/%s\" }", cid, server_url, cid, server_url, InstanceId, cid, server_url, InstanceId, cid, server_url, InstanceId, cid, server_url, InstanceId)
+	response := fmt.Sprintf("{ \"id\": \"%s\", \"cluster\": \"curl -H cid:%x %s/api/v1/cluster\", \"status\": \"curl -H cid:%x %s/api/v1/status/%s\", \"start\": \"curl -H cid:%x %s/api/v1/start/%s\", \"stop\": \"curl -H cid:%x %s/api/v1/stop/%s\", \"destroy\": \"curl -H cid:%x %s/api/v1/destroy/%s\" }", InstanceId, cid, server_url, cid, server_url, InstanceId, cid, server_url, InstanceId, cid, server_url, InstanceId, cid, server_url, InstanceId)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
