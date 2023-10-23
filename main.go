@@ -1174,7 +1174,6 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 		}
 
 		fmt.Printf("GET NEXT FREE Id for [%s]: [%s]\n",sCid,InstanceId)
-		return
 	}
 
 
