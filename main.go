@@ -931,6 +931,8 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 		tag := typeField.Tag
 
 		tmpval := fmt.Sprintf("%s", valueField.Interface())
+//		fmt.Printf("param %s valtype: %s\n",tmpval, val.Type)
+
 
 		if len(tmpval) == 0 {
 			continue
@@ -979,7 +981,17 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 		}
 
 		fmt.Printf("jconf: %s,\tField Name: %s,\t Field Value: %v,\t Tag Value: %s\n", jconf_param, typeField.Name, valueField.Interface(), tag.Get("tag_name"))
-		buf := fmt.Sprintf(",\"%s\": \"%s\"", jconf_param, tmpval)
+
+		var buf string
+
+		if strings.Compare(jconf_param, "cpus") == 0 {
+			// https://stackoverflow.com/questions/18041334/convert-interface-to-int
+			cpus := valueField.Interface().(int)
+			buf = fmt.Sprintf(",\"%s\": \"%d\"", jconf_param, cpus)
+		} else {
+			buf = fmt.Sprintf(",\"%s\": \"%s\"", jconf_param, tmpval)
+		}
+
 		buf2 := fmt.Sprintf("%s ", tmpval)
 		str.WriteString(buf)
 		recomendation.WriteString(buf2)
@@ -1078,6 +1090,8 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := json.Unmarshal(body, &vm); err != nil {
+		errMsg := fmt.Sprintf("unmarsahal  error: %v", err)
+		JSONError(w, errMsg, http.StatusMethodNotAllowed)
 		log.Printf("unmarsahal to &vm error %v", err)
 		return
 	}
@@ -1630,7 +1644,17 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 		}
 
 		fmt.Printf("jconf: %s,\tField Name: %s,\t Field Value: %v,\t Tag Value: %s\n", jconf_param, typeField.Name, valueField.Interface(), tag.Get("tag_name"))
-		buf := fmt.Sprintf(",\"%s\": \"%s\"", jconf_param, tmpval)
+
+		var buf string
+
+		if strings.Compare(jconf_param, "cpus") == 0 {
+			// https://stackoverflow.com/questions/18041334/convert-interface-to-int
+			cpus := valueField.Interface().(int)
+			buf = fmt.Sprintf(",\"%s\": \"%d\"", jconf_param, cpus)
+		} else {
+			buf = fmt.Sprintf(",\"%s\": \"%s\"", jconf_param, tmpval)
+		}
+
 		buf2 := fmt.Sprintf("%s ", tmpval)
 		str.WriteString(buf)
 		recomendation.WriteString(buf2)
