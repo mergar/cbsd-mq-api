@@ -47,7 +47,7 @@ type Vm struct {
 	Vm_os_profile string `json:vm_os_profile,omitempty"`
 	Jname         string `json:jname,omitempty"`
 	Ram           string `json:ram,omitempty"`
-	Cpus          string `"cpus,omitempty"`
+	Cpus          int    `"cpus,omitempty"`
 	Imgsize       string `"imgsize,omitempty"`
 	Pubkey        string `"pubkey,omitempty"`
 	PkgList       string `"pkglist,omitempty"`
@@ -859,20 +859,9 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 		suggest = ""
 	}
 
-	if len(vm.Cpus) > 0 {
-		cpus, err := strconv.Atoi(vm.Cpus)
-		fmt.Printf("C: [%s] [%d]\n", vm.Cpus, vm.Cpus)
-		if err != nil {
-			JSONError(w, "cpus not a number", http.StatusMethodNotAllowed)
-			return
-		}
-		if cpus <= 0 || cpus > 10 {
-			JSONError(w, "cpus valid range: 1-16", http.StatusMethodNotAllowed)
-			return
-		}
-	} else {
-		// '0' for jail + unlim
-		vm.Cpus = "0"
+	if vm.Cpus <= 0 || vm.Cpus > 16 {
+		JSONError(w, "cpus valid range: 1-16", http.StatusMethodNotAllowed)
+		return
 	}
 
 	if len(vm.Ram) > 0 {
@@ -1057,6 +1046,9 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 	var InstanceId string
 	params := mux.Vars(r)
 
+	var regexpVmOsType = regexp.MustCompile(`^[a-z_]+$`)
+//	var regexpVmOsProfile = regexp.MustCompile(`^[aA-zZ0-9_\-\.]+$`)
+
 	fmt.Println("create wakeup")
 
 	InstanceId = params["InstanceId"]
@@ -1093,6 +1085,15 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 	switch vm.Vm_os_type {
 		case "":
 		default:
+			if !regexpVmOsType.MatchString(vm.Vm_os_type) {
+//				JSONError(w, "The Vm_os_type should be valid form: ^[aA-zZ0-9_\-\.]*$ (maxlen: 40)", http.StatusMethodNotAllowed)
+				JSONError(w, "The Vm_os_type should be valid form: ^[aA-zZ0-9_-.]*$ (maxlen: 40)", http.StatusMethodNotAllowed)
+				fmt.Printf("Error: Vm_os_type paramname: [%s]\n", vm.Vm_os_type)
+				return
+			} else {
+				fmt.Printf("paramname test passed: [%s]\n", vm.Vm_os_type)
+			}
+
 			fmt.Printf("Bhyve VM_OS_TYPE set: [%s]\n", vm.Vm_os_type)
 			vm.Image="bhyve"
 	}
