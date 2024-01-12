@@ -1,6 +1,6 @@
-// CBSD Project 2013-2022
-// K8s-bhyve project 2020-2022
-// MyBee project 2021-2022
+// CBSD Project 2013-2024
+// K8s-bhyve project 2020-2024
+// MyBee project 2021-2024
 package main
 
 import (
@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+//	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+//	"gopkg.in/yaml.v3"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/ssh"
 )
@@ -34,6 +36,8 @@ var server_url string
 var acl_enable bool
 
 var clusterLimitMax int
+
+const MAX_UPLOAD_SIZE = 1024 * 1024 // 1MB
 
 type Response struct {
 	Message string
@@ -117,6 +121,34 @@ type Feed struct {
 
 type MyFeeds struct {
 	f *Feed
+}
+
+// Progress is used to track the progress of a file upload.
+// It implements the io.Writer interface so it can be passed
+// to an io.TeeReader()
+type Progress struct {
+    TotalSize int64
+    BytesRead int64
+}
+
+// Write is used to satisfy the io.Writer interface.
+// Instead of writing somewhere, it simply aggregates
+// the total bytes on each read
+func (pr *Progress) Write(p []byte) (n int, err error) {
+    n, err = len(p), nil
+    pr.BytesRead += int64(n)
+    pr.Print()
+    return
+}
+
+// Print displays the current progress of the file upload
+func (pr *Progress) Print() {
+    if pr.BytesRead == pr.TotalSize {
+	fmt.Println("DONE!")
+	return
+    }
+
+    fmt.Printf("File upload in progress: %d\n", pr.BytesRead)
 }
 
 func (f *Feed) Append(newAllow *AllowList) {
@@ -283,6 +315,8 @@ func main() {
 	router.HandleFunc("/api/v1/destroy/{InstanceId}", feeds.HandleClusterDestroy).Methods("GET")
 	router.HandleFunc("/api/v1/cluster", feeds.HandleClusterCluster).Methods("GET")
 	router.HandleFunc("/api/v1/k8scluster", feeds.HandleK8sClusterCluster).Methods("GET")
+//	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIac).Methods("POST")
+	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIac).Methods("POST")
 	router.HandleFunc("/images", HandleClusterImages).Methods("GET")
 	router.HandleFunc("/flavors", HandleClusterFlavors).Methods("GET")
 
@@ -741,6 +775,26 @@ func getNodeRecomendation(body string, offer string) {
 	config.BeanstalkConfig.Tube = tube
 	config.BeanstalkConfig.ReplyTubePrefix = reply
 }
+
+func applyIac(yaml string) {
+	// offer - recomendation host from user, we can check them in external helper
+	// for valid/resource
+
+	var result string
+
+	cmdStr := fmt.Sprintf("/usr/home/oleg/cbsd-mq-api/apply /usr/home/oleg/cbsd-mq-api/uploads/%s", yaml)
+	cmdArgs := strings.Fields(cmdStr)
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:len(cmdArgs)]...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("get recomendation script failed")
+		return
+	}
+	result = (string(out))
+
+	fmt.Printf("IaC Apply: [%s]\n", result)
+}
+
 
 func getJname() string {
 	cmdStr := fmt.Sprintf("%s", config.Freejname)
@@ -1217,6 +1271,158 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 
 	return
 }
+
+
+func dump(items []interface{}) {
+    fmt.Println("Name")
+    for i := 0; i < len(items); i++ {
+          v := reflect.ValueOf(items[i])
+          name := v.FieldByName("Name")
+          fmt.Println(name.String())
+    }
+}
+
+func somethingWentWrong(w http.ResponseWriter) {
+    w.WriteHeader(500)
+    w.Write([]byte("something went wrong"))
+}
+
+
+func (feeds *MyFeeds) HandleIac(w http.ResponseWriter, r *http.Request) {
+	var InstanceId string
+	var yaml string
+	params := mux.Vars(r)
+
+	fmt.Println("create wakeup")
+
+	InstanceId = params["InstanceId"]
+	if !validateInstanceId(InstanceId) {
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if r.Body == nil {
+		JSONError(w, "please send a request body", http.StatusMethodNotAllowed)
+		return
+	}
+	//If its not multipart, We will expect file data in body.
+//	if !strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
+//		log.Println("multipart/form-data error")
+//		//handleFileInBody(w, r)
+//		return
+//	}
+
+/*
+	checkMapfile := fmt.Sprintf("/tmp/iac.yaml")
+
+	f, err := os.Create(checkMapfile)
+
+	written, err := io.Copy(f, r.Body)
+	if err != nil {
+		log.Println("copy error", err)
+//		somethingWentWrong(w)
+		return
+	}
+
+	log.Println("Written", written)
+*/
+
+    if r.Method != "POST" {
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	return
+    }
+
+	//log.Println("TEST")
+
+//    return
+
+
+    // 32 MB is the default used by FormFile
+    if err := r.ParseMultipartForm(32 << 20); err != nil {
+	http.Error(w, err.Error(), http.StatusBadRequest)
+	return
+    }
+
+    // get a reference to the fileHeaders
+    files := r.MultipartForm.File["file"]
+
+    for _, fileHeader := range files {
+	if fileHeader.Size > MAX_UPLOAD_SIZE {
+	    http.Error(w, fmt.Sprintf("The uploaded image is too big: %s. Please use an image less than 1MB in size", fileHeader.Filename), http.StatusBadRequest)
+	    return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+	    http.Error(w, err.Error(), http.StatusInternalServerError)
+	    return
+	}
+
+	defer file.Close()
+
+	buff := make([]byte, 512)
+//	buff := make([]byte, 8)
+	_, err = file.Read(buff)
+	if err != nil {
+		log.Println("Error file.Read buff ")
+	    http.Error(w, err.Error(), http.StatusInternalServerError)
+	    return
+	}
+
+	filetype := http.DetectContentType(buff)
+//	if filetype != "image/jpeg" && filetype != "image/png" {
+		log.Println("Content Type: ", filetype)
+	//    http.Error(w, "The provided file format is not allowed. Please upload a JPEG or PNG image", http.StatusBadRequest)
+//	    return
+//	}
+
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+	log.Println("Seek error")
+	    http.Error(w, err.Error(), http.StatusInternalServerError)
+	    return
+	}
+
+	err = os.MkdirAll("./uploads", os.ModePerm)
+	if err != nil {
+	    http.Error(w, err.Error(), http.StatusInternalServerError)
+	    return
+	}
+
+	yaml = fmt.Sprintf("%d.yaml", time.Now().UnixNano())
+
+	// inherit extension
+//	f, err := os.Create(fmt.Sprintf("./uploads/%d%s.yaml", time.Now().UnixNano(), filepath.Ext(fileHeader.Filename)))
+	f, err := os.Create(fmt.Sprintf("./uploads/%s", yaml))
+	if err != nil {
+	    http.Error(w, err.Error(), http.StatusBadRequest)
+	    return
+	}
+
+	defer f.Close()
+
+	pr := &Progress{
+	    TotalSize: fileHeader.Size,
+	}
+
+	_, err = io.Copy(f, io.TeeReader(file, pr))
+	if err != nil {
+	    http.Error(w, err.Error(), http.StatusBadRequest)
+	    return
+	}
+    }
+
+	fmt.Fprintf(w, "Upload successful")
+
+	go applyIac(yaml)
+
+
+	return
+}
+
+
+
+
 
 func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 
