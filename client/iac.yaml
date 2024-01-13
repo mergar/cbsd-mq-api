@@ -1,0 +1,109 @@
+---
+timezone::timezone: Europe/Moscow
+
+profile::sysctl::entries:
+  kern.init_shutdown_timeout:
+    value: 901
+
+accounts::user_list:
+  ololo:
+    groups:
+      - wheel
+      - operator
+    password: '*'
+    shell: /bin/sh
+
+profile::package::entries:
+  tmux:
+    ensure: "present"
+  git:
+    ensure: "present"
+  rsync:
+    ensure: "present"
+  rsync:
+    ensure: "present"
+  mc:
+    ensure: "present"
+  ca_root_nss:
+    ensure: "latest"
+  cpu-microcode:
+    ensure: "latest"
+
+crontab::purge: true
+
+sudo::purge: true
+sudo::config_file_replace: true
+
+sudo::configs:
+  "ololo":
+    "content": "%wheel ALL=(ALL) NOPASSWD: ALL"
+    "priority": 10
+    "content": |
+      Defaults     env_keep += "workdir DIALOG NOCOLOR CBSD_RNODE"
+      Cmnd_Alias   CBSD_CMD = /usr/local/cbsd/sudoexec/*,/usr/local/cbsd/sudoexec/*
+      cbsd   ALL=(ALL) NOPASSWD:SETENV: CBSD_CMD
+
+profile::file::entries:
+  /var/coredumps:
+    ensure: "directory"
+    path: "/var/coredumps"
+    group: 0
+    owner: 0
+    mode: "0777"
+  '/bin/bash':
+    path: "/bin/bash"
+    ensure: link
+    target: /usr/local/bin/bash
+
+
+crontab::crontab_entries:
+  "date.sh":
+    command: |
+      /usr/bin/lockf -s -t0 /tmp/date.lock timeout 50 /bin/date > /dev/null 2>&1
+    user: "root"
+    minute: '*'
+    hour: '*'
+    weekday: '*'
+
+
+rcconf::config:
+  iac_test: "YES"
+  syslogd_flags: "-ss -f /root/etc/syslog.conf"
+  newsyslog_flags: "-CN -f /root/etc/newsyslog.conf"
+  fsck_y_enable: "YES"
+  ntpdate_enable: "YES"
+  ntpd_enable: "YES"
+  ntpd_sync_on_start: "YES"
+
+
+loaderconf::config:
+  'kern.geom.label.disk_ident.enable': '0'
+  'kern.geom.label.gptid.enable': '0'
+  'opensolaris_load': 'YES'
+  'zfs_load': 'YES'
+  'vfs.zfs.arc_max': '512M'
+  'aesni_load': 'YES'
+  'ipfw_load': 'YES'
+  'net.inet.ip.fw.default_to_accept': '1'
+  'cpuctl_load': 'YES'
+  'pf_load': 'YES'
+  'vmm_load': 'YES'
+  'kern.racct.enable': '1'
+  'vm.pmap.pti': '0'
+  'hw.ibrs_disable': '1'
+  'crypto_load': 'YES'
+  'debug.acpi.disabled': 'thermal'
+  'cpuctl_load': 'YES'
+  'cpu_microcode_load': 'YES'
+  'cpu_microcode_name': '/boot/firmware/intel-ucode.bin'
+
+
+jail1:
+  timezone::timezone: Europe/Moscow
+  accounts::user_list:
+    ololo:
+      groups:
+        - wheel
+        - operator
+      password: '*'
+      shell: /bin/sh

@@ -1,6 +1,6 @@
 # CBSD RESTFull API
 
-Copyright (c) 2013-2022, The CBSD Development Team
+Copyright (c) 2013-2024, The CBSD Development Team
 
 Homepage: https://bsdstore.ru/
 Homepage: https://github.com/cbsd/

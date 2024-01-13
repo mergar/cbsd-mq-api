@@ -782,12 +782,12 @@ func applyIac(yaml string) {
 
 	var result string
 
-	cmdStr := fmt.Sprintf("/usr/home/oleg/cbsd-mq-api/apply /usr/home/oleg/cbsd-mq-api/uploads/%s", yaml)
+	cmdStr := fmt.Sprintf("/usr/local/bin/cbsd-mq-api-apply /var/spool/cbsd-mq-api/upload/%s", yaml)
 	cmdArgs := strings.Fields(cmdStr)
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:len(cmdArgs)]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println("get recomendation script failed")
+		fmt.Println("cbsd-mq-api-apply failed", cmdStr)
 		return
 	}
 	result = (string(out))
@@ -1383,17 +1383,20 @@ func (feeds *MyFeeds) HandleIac(w http.ResponseWriter, r *http.Request) {
 	    return
 	}
 
-	err = os.MkdirAll("./uploads", os.ModePerm)
-	if err != nil {
-	    http.Error(w, err.Error(), http.StatusInternalServerError)
-	    return
+	if !fileExists("/var/spool/cbsd-mq-api/upload") {
+		fmt.Printf("* create spool dir: /var/spool/cbsd-mq-api/upload\n")
+		err = os.MkdirAll("/var/spool/cbsd-mq-api/upload", os.ModePerm)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	yaml = fmt.Sprintf("%d.yaml", time.Now().UnixNano())
 
 	// inherit extension
-//	f, err := os.Create(fmt.Sprintf("./uploads/%d%s.yaml", time.Now().UnixNano(), filepath.Ext(fileHeader.Filename)))
-	f, err := os.Create(fmt.Sprintf("./uploads/%s", yaml))
+//	f, err := os.Create(fmt.Sprintf("/var/spool/cbsd-mq-api/upload/%d%s.yaml", time.Now().UnixNano(), filepath.Ext(fileHeader.Filename)))
+	f, err := os.Create(fmt.Sprintf("/var/spool/cbsd-mq-api/upload/%s", yaml))
 	if err != nil {
 	    http.Error(w, err.Error(), http.StatusBadRequest)
 	    return

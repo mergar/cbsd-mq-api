@@ -1,0 +1,44 @@
+#!/bin/sh
+LOG="/tmp/apply"
+date >> ${LOG}
+echo "$*" >> ${LOG}
+
+T=$( mktemp -d )
+
+cd ${T}
+cp $* ${T}/common.yaml
+
+cat >${T}/hiera.yaml<<EOF
+---
+version: 5
+defaults:
+hierarchy:
+  - name: "Other YAML hierarchy levels"
+    datadir: ${T}
+    paths:
+      - "common.yaml"
+EOF
+
+for i in timezone profile::sysctl profile::package accounts::user_list sudo profile::file crontab rcconf loaderconf; do
+	grep -q ^${i} ${T}/common.yaml
+	ret=$?
+	if [ ${ret} -eq 0 ]; then
+		case "${i}" in
+			accounts::user_list)
+				i="vaccounts"
+				;;
+		esac
+		echo "include ${i}" >> ${T}/init.pp
+	fi
+done
+
+echo "Init:"
+cat ${T}/init.pp
+echo
+
+/usr/local/bin/puppet apply ${T}/init.pp --show_diff --hiera_config=${T}/hiera.yaml --modulepath=/usr/local/cbsd/modules/puppet.d/modules/public
+
+rm -rf ${T}
+
+echo "Done"
+exit 0
