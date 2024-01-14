@@ -1,5 +1,5 @@
 ---
-timezone::timezone: Europe/Berlin
+timezone::timezone: Europe/Moscow
 
 profile::sysctl::entries:
   kern.init_shutdown_timeout:

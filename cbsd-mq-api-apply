@@ -1,44 +1,140 @@
 #!/bin/sh
 LOG="/tmp/apply"
+
+export NOCOLOR=1
+
+MOD_ALLOWED="timezone profile::sysctl profile::package accounts::user_list sudo profile::file crontab rcconf loaderconf"
+
+# cast several records/matches to valid module name
+map_module()
+{
+	local i
+
+	case "${1}" in
+		accounts::user_list)
+			i="vaccounts"
+			;;
+		*)
+			i="${1}"
+			;;
+	esac
+
+	printf "${i}"
+}
+
+instance="${1}"
+yaml="${2}"
+
+_progress="1"
+_message="applying role..."
+output=""
+roles=
+ret=0
+
+cat > /var/spool/cbsd-mq-api/${instance}.status <<EOF
+{
+  "progress": ${_progress},
+  "message": "${_message}",
+  "errcode": ${ret},
+  "statusInfo": {
+    "roles": "${roles}",
+    "output": "${output}"
+  }
+}
+EOF
+
 date >> ${LOG}
 echo "$*" >> ${LOG}
 
-T=$( mktemp -d )
+if [ "${instance}" = "_" ]; then
+	HDATA=$( mktemp -d )
+	MDATA="${HDATA}"
+else
+	HDATA="/usr/jails/jails-system/${instance}/puppet/hieradata"
+	MDATA="/usr/jails/jails-system/${instance}/puppet/manifest"
+	[ ! -d "${HDATA}" ] && mkdir -p "${HDATA}"
+	[ ! -d "${MDATA}" ] && mkdir -p "${MDATA}"
+	[ -r ${MDATA}/init.pp ] && rm -f ${MDATA}/init.pp
+fi
 
-cd ${T}
-cp $* ${T}/common.yaml
+cd ${HDATA}
+cp ${yaml} ${HDATA}/common.yaml
 
-cat >${T}/hiera.yaml<<EOF
+cat >${HDATA}/hiera.yaml<<EOF
 ---
 version: 5
 defaults:
 hierarchy:
   - name: "Other YAML hierarchy levels"
-    datadir: ${T}
+    datadir: ${HDATA}
     paths:
       - "common.yaml"
 EOF
 
-for i in timezone profile::sysctl profile::package accounts::user_list sudo profile::file crontab rcconf loaderconf; do
-	grep -q ^${i} ${T}/common.yaml
+for i in ${MOD_ALLOWED}; do
+	grep -q ^${i} ${HDATA}/common.yaml
 	ret=$?
-	if [ ${ret} -eq 0 ]; then
-		case "${i}" in
-			accounts::user_list)
-				i="vaccounts"
-				;;
-		esac
-		echo "include ${i}" >> ${T}/init.pp
+	[ ${ret} -ne 0 ] && continue
+
+	_role_name=
+	_role_name=$( map_module "${i}" )
+
+	echo "include ${_role_name}" >> ${MDATA}/init.pp
+
+	if [ -z "${roles}" ]; then
+		roles="${_role_name}"
+	else
+		roles="${roles} ${_role_name}"
 	fi
 done
 
 echo "Init:"
-cat ${T}/init.pp
+cat ${MDATA}/init.pp
 echo
 
-/usr/local/bin/puppet apply ${T}/init.pp --show_diff --hiera_config=${T}/hiera.yaml --modulepath=/usr/local/cbsd/modules/puppet.d/modules/public
+_progress="3"
 
-rm -rf ${T}
+cat > /var/spool/cbsd-mq-api/${instance}.status <<EOF
+{
+  "progress": ${_progress},
+  "message": "${_message}",
+  "errcode": ${ret},
+  "statusInfo": {
+    "roles": "${roles}",
+    "output": "${output}"
+  }
+}
+EOF
+
+_log=$( mktemp )
+
+if [ "${instance}" = "_" ]; then
+	/usr/local/bin/puppet apply ${MDATA}/init.pp --color=false --show_diff --hiera_config=${HDATA}/hiera.yaml --modulepath=/usr/local/cbsd/modules/puppet.d/modules/public > ${_log}
+	ret=$?
+else
+	/usr/local/bin/cbsd puppet jname=${instance} mode=apply > ${_log}
+	ret=$?
+fi
+
+_progress="100"
+
+output=$( cat ${_log} | tr -d '"' | tr '\r\n' '\\n' )
+
+cp ${_log} /tmp/x
+
+cat > /var/spool/cbsd-mq-api/${instance}.status <<EOF
+{
+  "progress": ${_progress},
+  "message": "done",
+  "errcode": ${ret},
+  "statusInfo": {
+    "roles": "${roles}",
+    "output": "${output}"
+  }
+}
+EOF
+
+rm -rf ${MDATA} ${HDATA} ${_log}
 
 echo "Done"
 exit 0

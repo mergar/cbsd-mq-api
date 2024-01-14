@@ -34,6 +34,7 @@ var runscript string
 var workdir string
 var server_url string
 var acl_enable bool
+var spool_Dir string
 
 var clusterLimitMax int
 
@@ -103,6 +104,7 @@ var (
 	k8sDbDir               = flag.String("k8sdbdir", "/var/db/cbsd-k8s", "db root dir")
 	allowListFile          = flag.String("allowlist", "", "Path to PubKey whitelist, e.g: -allowlist /usr/local/etc/cbsd-mq-api.allow")
 	clusterLimit           = flag.Int("cluster_limit", 3, "Max number of clusters")
+	spoolDir               = flag.String("spooldir", "/var/spool/cbsd-mq-api", "spool root dir")
 )
 
 type AllowList struct {
@@ -226,6 +228,11 @@ func main() {
 
 	workdir = config.CbsdEnv
 	server_url = config.ServerUrl
+	spool_Dir = *spoolDir
+
+	if !fileExists(spool_Dir) {
+		os.MkdirAll(spool_Dir, 0770)
+	}
 
 	clusterLimitMax = *clusterLimit
 
@@ -317,6 +324,7 @@ func main() {
 	router.HandleFunc("/api/v1/k8scluster", feeds.HandleK8sClusterCluster).Methods("GET")
 //	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIac).Methods("POST")
 	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIac).Methods("POST")
+	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIacRequestStatus).Methods("GET")
 	router.HandleFunc("/images", HandleClusterImages).Methods("GET")
 	router.HandleFunc("/flavors", HandleClusterFlavors).Methods("GET")
 
@@ -776,13 +784,13 @@ func getNodeRecomendation(body string, offer string) {
 	config.BeanstalkConfig.ReplyTubePrefix = reply
 }
 
-func applyIac(yaml string) {
+func applyIac(env string, yaml string) {
 	// offer - recomendation host from user, we can check them in external helper
 	// for valid/resource
 
 	var result string
 
-	cmdStr := fmt.Sprintf("/usr/local/bin/cbsd-mq-api-apply /var/spool/cbsd-mq-api/upload/%s", yaml)
+	cmdStr := fmt.Sprintf("/usr/local/bin/cbsd-mq-api-apply %s /var/spool/cbsd-mq-api/upload/%s", env, yaml)
 	cmdArgs := strings.Fields(cmdStr)
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:len(cmdArgs)]...)
 	out, err := cmd.CombinedOutput()
@@ -1301,6 +1309,7 @@ func (feeds *MyFeeds) HandleIac(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	if r.Body == nil {
 		JSONError(w, "please send a request body", http.StatusMethodNotAllowed)
 		return
@@ -1417,7 +1426,7 @@ func (feeds *MyFeeds) HandleIac(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "Upload successful")
 
-	go applyIac(yaml)
+	go applyIac(InstanceId, yaml)
 
 
 	return
@@ -2295,4 +2304,44 @@ func (feeds *MyFeeds) HandleClusterStart(w http.ResponseWriter, r *http.Request)
 
 	JSONError(w, "started", 200)
 	return
+}
+
+func (feeds *MyFeeds) HandleIacRequestStatus(w http.ResponseWriter, r *http.Request) {
+        var InstanceId string
+        params := mux.Vars(r)
+
+        InstanceId = params["InstanceId"]
+
+	InstanceId = params["InstanceId"]
+	if !validateInstanceId(InstanceId) {
+		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
+		return
+	}
+
+        progressFile := fmt.Sprintf("%s/%s.status",spool_Dir,InstanceId);
+
+//      if r.Body == nil {
+//              JSONError(w, "please send a request body", http.StatusInternalServerError)
+//              return
+//      }
+        fmt.Printf("CHECK FOR: [%s]\n", progressFile)
+
+        if !fileExists(progressFile) {
+                fmt.Printf("Error: projectId not exist: [%s]\n", progressFile)
+                JSONError(w, "projectId not exist", http.StatusNotFound)
+                return
+        }
+
+        b, err := ioutil.ReadFile(progressFile) // just pass the file name
+        if err != nil {
+                fmt.Printf("unable to read progress file from: [%s]\n", progressFile)
+                JSONError(w, "", 400)
+                return
+        }
+
+        // already in json - send as-is
+        w.Header().Set("Content-Type", "application/json; charset=utf-8")
+        w.Header().Set("X-Content-Type-Options", "nosniff")
+        http.Error(w, string(b), 200)
+        return
 }
