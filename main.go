@@ -129,28 +129,28 @@ type MyFeeds struct {
 // It implements the io.Writer interface so it can be passed
 // to an io.TeeReader()
 type Progress struct {
-    TotalSize int64
-    BytesRead int64
+	TotalSize int64
+	BytesRead int64
 }
 
 // Write is used to satisfy the io.Writer interface.
 // Instead of writing somewhere, it simply aggregates
 // the total bytes on each read
 func (pr *Progress) Write(p []byte) (n int, err error) {
-    n, err = len(p), nil
-    pr.BytesRead += int64(n)
-    pr.Print()
-    return
+	n, err = len(p), nil
+	pr.BytesRead += int64(n)
+	pr.Print()
+	return
 }
 
 // Print displays the current progress of the file upload
 func (pr *Progress) Print() {
-    if pr.BytesRead == pr.TotalSize {
-	fmt.Println("DONE!")
-	return
-    }
+	if pr.BytesRead == pr.TotalSize {
+		fmt.Println("DONE!")
+		return
+	}
 
-    fmt.Printf("File upload in progress: %d\n", pr.BytesRead)
+	fmt.Printf("File upload in progress: %d\n", pr.BytesRead)
 }
 
 func (f *Feed) Append(newAllow *AllowList) {
@@ -322,9 +322,9 @@ func main() {
 	router.HandleFunc("/api/v1/destroy/{InstanceId}", feeds.HandleClusterDestroy).Methods("GET")
 	router.HandleFunc("/api/v1/cluster", feeds.HandleClusterCluster).Methods("GET")
 	router.HandleFunc("/api/v1/k8scluster", feeds.HandleK8sClusterCluster).Methods("GET")
+//	for test only
 //	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIac).Methods("POST")
-	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIac).Methods("POST")
-	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIacRequestStatus).Methods("GET")
+//	router.HandleFunc("/api/v1/iac/{InstanceId}", feeds.HandleIacRequestStatus).Methods("GET")
 	router.HandleFunc("/images", HandleClusterImages).Methods("GET")
 	router.HandleFunc("/flavors", HandleClusterFlavors).Methods("GET")
 
@@ -995,7 +995,6 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 		tmpval := fmt.Sprintf("%s", valueField.Interface())
 //		fmt.Printf("param %s valtype: %s\n",tmpval, val.Type)
 
-
 		if len(tmpval) == 0 {
 			continue
 		}
@@ -1088,6 +1087,8 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	tfile.Close()
 
 	getNodeRecomendation(recomendation.String(), suggest)
+
+	// error code
 	go realInstanceCreate(str.String())
 
 	mapfile := fmt.Sprintf("%s/var/db/api/map/%x-%s", workdir, cid, InstanceId)
@@ -1130,7 +1131,6 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
-
 
 	var regexpPubkey = regexp.MustCompile("^(ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-[^ ]+) ([^ ]+) ?(.*)")
 
@@ -1253,7 +1253,6 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 		fmt.Printf("GET NEXT FREE Id for [%s]: [%s]\n",sCid,InstanceId)
 	}
 
-
 	// route to subfunctim
 	switch vm.Image {
 	case "jail":
@@ -1282,17 +1281,17 @@ func (feeds *MyFeeds) HandleClusterCreate(w http.ResponseWriter, r *http.Request
 
 
 func dump(items []interface{}) {
-    fmt.Println("Name")
-    for i := 0; i < len(items); i++ {
-          v := reflect.ValueOf(items[i])
-          name := v.FieldByName("Name")
-          fmt.Println(name.String())
-    }
+	fmt.Println("Name")
+	for i := 0; i < len(items); i++ {
+		v := reflect.ValueOf(items[i])
+		name := v.FieldByName("Name")
+		fmt.Println(name.String())
+	}
 }
 
 func somethingWentWrong(w http.ResponseWriter) {
-    w.WriteHeader(500)
-    w.Write([]byte("something went wrong"))
+	w.WriteHeader(500)
+	w.Write([]byte("something went wrong"))
 }
 
 
@@ -1308,7 +1307,6 @@ func (feeds *MyFeeds) HandleIac(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "The InstanceId should be valid form: ^[a-z_]([a-z0-9_])*$ (maxlen: 40)", http.StatusMethodNotAllowed)
 		return
 	}
-
 
 	if r.Body == nil {
 		JSONError(w, "please send a request body", http.StatusMethodNotAllowed)
@@ -1336,104 +1334,94 @@ func (feeds *MyFeeds) HandleIac(w http.ResponseWriter, r *http.Request) {
 	log.Println("Written", written)
 */
 
-    if r.Method != "POST" {
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	return
-    }
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
 	//log.Println("TEST")
 
-//    return
-
-
-    // 32 MB is the default used by FormFile
-    if err := r.ParseMultipartForm(32 << 20); err != nil {
-	http.Error(w, err.Error(), http.StatusBadRequest)
-	return
-    }
-
-    // get a reference to the fileHeaders
-    files := r.MultipartForm.File["file"]
-
-    for _, fileHeader := range files {
-	if fileHeader.Size > MAX_UPLOAD_SIZE {
-	    http.Error(w, fmt.Sprintf("The uploaded image is too big: %s. Please use an image less than 1MB in size", fileHeader.Filename), http.StatusBadRequest)
-	    return
+	// 32 MB is the default used by FormFile
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	file, err := fileHeader.Open()
-	if err != nil {
-	    http.Error(w, err.Error(), http.StatusInternalServerError)
-	    return
-	}
+	// get a reference to the fileHeaders
+	files := r.MultipartForm.File["file"]
 
-	defer file.Close()
+	for _, fileHeader := range files {
+		if fileHeader.Size > MAX_UPLOAD_SIZE {
+			http.Error(w, fmt.Sprintf("The uploaded image is too big: %s. Please use an image less than 1MB in size", fileHeader.Filename), http.StatusBadRequest)
+			return
+		}
 
-	buff := make([]byte, 512)
-//	buff := make([]byte, 8)
-	_, err = file.Read(buff)
-	if err != nil {
-		log.Println("Error file.Read buff ")
-	    http.Error(w, err.Error(), http.StatusInternalServerError)
-	    return
-	}
-
-	filetype := http.DetectContentType(buff)
-//	if filetype != "image/jpeg" && filetype != "image/png" {
-		log.Println("Content Type: ", filetype)
-	//    http.Error(w, "The provided file format is not allowed. Please upload a JPEG or PNG image", http.StatusBadRequest)
-//	    return
-//	}
-
-	_, err = file.Seek(0, io.SeekStart)
-	if err != nil {
-	log.Println("Seek error")
-	    http.Error(w, err.Error(), http.StatusInternalServerError)
-	    return
-	}
-
-	if !fileExists("/var/spool/cbsd-mq-api/upload") {
-		fmt.Printf("* create spool dir: /var/spool/cbsd-mq-api/upload\n")
-		err = os.MkdirAll("/var/spool/cbsd-mq-api/upload", os.ModePerm)
+		file, err := fileHeader.Open()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		defer file.Close()
+
+		buff := make([]byte, 512)
+	//	buff := make([]byte, 8)
+		_, err = file.Read(buff)
+		if err != nil {
+			log.Println("Error file.Read buff ")
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		filetype := http.DetectContentType(buff)
+	//	if filetype != "image/jpeg" && filetype != "image/png" {
+		log.Println("Content Type: ", filetype)
+
+		_, err = file.Seek(0, io.SeekStart)
+		if err != nil {
+		log.Println("Seek error")
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if !fileExists("/var/spool/cbsd-mq-api/upload") {
+			fmt.Printf("* create spool dir: /var/spool/cbsd-mq-api/upload\n")
+			err = os.MkdirAll("/var/spool/cbsd-mq-api/upload", os.ModePerm)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		yaml = fmt.Sprintf("%d.yaml", time.Now().UnixNano())
+
+		// inherit extension
+	//	f, err := os.Create(fmt.Sprintf("/var/spool/cbsd-mq-api/upload/%d%s.yaml", time.Now().UnixNano(), filepath.Ext(fileHeader.Filename)))
+		f, err := os.Create(fmt.Sprintf("/var/spool/cbsd-mq-api/upload/%s", yaml))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		defer f.Close()
+
+		pr := &Progress{
+			TotalSize: fileHeader.Size,
+		}
+
+		_, err = io.Copy(f, io.TeeReader(file, pr))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
-
-	yaml = fmt.Sprintf("%d.yaml", time.Now().UnixNano())
-
-	// inherit extension
-//	f, err := os.Create(fmt.Sprintf("/var/spool/cbsd-mq-api/upload/%d%s.yaml", time.Now().UnixNano(), filepath.Ext(fileHeader.Filename)))
-	f, err := os.Create(fmt.Sprintf("/var/spool/cbsd-mq-api/upload/%s", yaml))
-	if err != nil {
-	    http.Error(w, err.Error(), http.StatusBadRequest)
-	    return
-	}
-
-	defer f.Close()
-
-	pr := &Progress{
-	    TotalSize: fileHeader.Size,
-	}
-
-	_, err = io.Copy(f, io.TeeReader(file, pr))
-	if err != nil {
-	    http.Error(w, err.Error(), http.StatusBadRequest)
-	    return
-	}
-    }
 
 	fmt.Fprintf(w, "Upload successful")
 
 	go applyIac(InstanceId, yaml)
 
-
 	return
 }
-
-
-
 
 
 func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
@@ -1527,7 +1515,6 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 //		JSONError(w, "not allowed", http.StatusMethodNotAllowed)
 //		return
 //	}
-
 
 	// Count+Limits per CID should be implemented here (database req).
 	ClusterTimePath := fmt.Sprintf("%s/%x.time", *k8sDbDir, cid)
@@ -1834,31 +1821,30 @@ func HandleCreateK8s(w http.ResponseWriter, cluster Cluster) {
 
 		// validate unknown data values
 		switch jconf_param {
-		case "type":
-		case "imgsize":
-		case "ram":
-		case "cpus":
-		case "pkglist":
-		case "pubkey":
-		case "host_hostname":
-		case "init_masters":
-		case "init_workers":
-		case "master_vm_ram":
-		case "master_vm_cpus":
-		case "master_vm_imgsize":
-		case "worker_vm_ram":
-		case "worker_vm_cpus":
-		case "worker_vm_imgsize":
-		case "pv_enable":
-		case "kubelet_master":
-		case "email":
-		case "callback":
-
-		default:
-			if !regexpParamVal.MatchString(tmpval) {
-				fmt.Printf("Error: wrong paramval for %s: [%s]\n", jconf_param, tmpval)
-				continue
-			}
+			case "type":
+			case "imgsize":
+			case "ram":
+			case "cpus":
+			case "pkglist":
+			case "pubkey":
+			case "host_hostname":
+			case "init_masters":
+			case "init_workers":
+			case "master_vm_ram":
+			case "master_vm_cpus":
+			case "master_vm_imgsize":
+			case "worker_vm_ram":
+			case "worker_vm_cpus":
+			case "worker_vm_imgsize":
+			case "pv_enable":
+			case "kubelet_master":
+			case "email":
+			case "callback":
+			default:
+				if !regexpParamVal.MatchString(tmpval) {
+					fmt.Printf("Error: wrong paramval for %s: [%s]\n", jconf_param, tmpval)
+					continue
+				}
 		}
 
 		fmt.Printf("jconf: %s,\tField Name: %s,\t Field Value: %v,\t Tag Value: %s\n", jconf_param, typeField.Name, valueField.Interface(), tag.Get("tag_name"))
@@ -2307,10 +2293,10 @@ func (feeds *MyFeeds) HandleClusterStart(w http.ResponseWriter, r *http.Request)
 }
 
 func (feeds *MyFeeds) HandleIacRequestStatus(w http.ResponseWriter, r *http.Request) {
-        var InstanceId string
-        params := mux.Vars(r)
+	var InstanceId string
+	params := mux.Vars(r)
 
-        InstanceId = params["InstanceId"]
+	InstanceId = params["InstanceId"]
 
 	InstanceId = params["InstanceId"]
 	if !validateInstanceId(InstanceId) {
@@ -2318,30 +2304,30 @@ func (feeds *MyFeeds) HandleIacRequestStatus(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-        progressFile := fmt.Sprintf("%s/%s.status",spool_Dir,InstanceId);
+	progressFile := fmt.Sprintf("%s/%s.status",spool_Dir,InstanceId);
 
 //      if r.Body == nil {
 //              JSONError(w, "please send a request body", http.StatusInternalServerError)
 //              return
 //      }
-        fmt.Printf("CHECK FOR: [%s]\n", progressFile)
+	fmt.Printf("CHECK FOR: [%s]\n", progressFile)
 
-        if !fileExists(progressFile) {
-                fmt.Printf("Error: projectId not exist: [%s]\n", progressFile)
-                JSONError(w, "projectId not exist", http.StatusNotFound)
-                return
-        }
+	if !fileExists(progressFile) {
+		fmt.Printf("Error: projectId not exist: [%s]\n", progressFile)
+		JSONError(w, "projectId not exist", http.StatusNotFound)
+		return
+	}
 
-        b, err := ioutil.ReadFile(progressFile) // just pass the file name
-        if err != nil {
-                fmt.Printf("unable to read progress file from: [%s]\n", progressFile)
-                JSONError(w, "", 400)
-                return
-        }
+	b, err := ioutil.ReadFile(progressFile) // just pass the file name
+	if err != nil {
+		fmt.Printf("unable to read progress file from: [%s]\n", progressFile)
+		JSONError(w, "", 400)
+		return
+	}
 
-        // already in json - send as-is
-        w.Header().Set("Content-Type", "application/json; charset=utf-8")
-        w.Header().Set("X-Content-Type-Options", "nosniff")
-        http.Error(w, string(b), 200)
-        return
+	// already in json - send as-is
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	http.Error(w, string(b), 200)
+	return
 }

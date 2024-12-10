@@ -9,7 +9,7 @@ defaults:
   # data_hash: yaml_data
 hierarchy:
   - name: "Other YAML hierarchy levels"
-    datadir: /usr/home/oleg/cbsd-mq-api
+    datadir: /home/iac/cbsd-mq-api
     paths:
       - "common.yaml"
 
