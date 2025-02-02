@@ -269,6 +269,7 @@ func main() {
 	f := &Feed{}
 
 	fmt.Printf("* Cluster limit: %d\n", clusterLimitMax)
+	fmt.Printf("* VM engine: %s\n", vm_Engine)
 
 	// WhiteList
 	if (*allowListFile == "") || (!fileExists(*allowListFile)) {
@@ -1017,7 +1018,9 @@ func HandleCreateVm(w http.ResponseWriter, vm Vm) {
 	str.WriteString("\",\"CommandArgs\":{\"mode\":\"create\",\"jname\":\"")
 	str.WriteString(Jname)
 	str.WriteString("\"")
-	//str.WriteString("}}");
+	str.WriteString(", \"emulator\":\"")
+	str.WriteString(vm_Engine)
+	str.WriteString("\"")
 
 	// todo: filter for insecured param=val
 	for i := 0; i < val.NumField(); i++ {
