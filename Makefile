@@ -31,7 +31,7 @@ endif
 
 deb: all
 	make -C deb clean
-	@test -d deb/root/usr/local/sbin || mkdir -m 0755 deb/root/usr/local/sbin
+	@test -d deb/root/usr/local/sbin || mkdir -p -m 0755 deb/root/usr/local/sbin
 	install cbsd-mq-api deb/root/usr/local/sbin/cbsd-mq-api
 	@test -d deb/root/lib/systemd/system || mkdir -p -m 0755 deb/root/lib/systemd/system
 	install systemd/cbsd-mq-api.service deb/root/lib/systemd/system/cbsd-mq-api.service
