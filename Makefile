@@ -5,8 +5,10 @@ all:
 	@./build.sh
 
 clean:
-	rm -f cbsd-mq-api
+	rm -f cbsd-mq-api *.deb
 	rm -rf src
+	make -C deb clean
+
 
 install: all
 	install cbsd-mq-api /usr/local/sbin
