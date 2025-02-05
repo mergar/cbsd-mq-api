@@ -9,3 +9,10 @@ common.yaml
 hiera.yaml
 init.pp
 pkg
+deb/*.deb
+*.deb
+deb/root/DEBIAN/control
+deb/root/etc
+deb/root/lib
+deb/root/usr
+deb/root/var

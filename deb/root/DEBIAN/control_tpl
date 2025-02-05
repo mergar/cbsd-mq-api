@@ -1,0 +1,11 @@
+Package: cbsd-mq-api
+Version: %%VER%%
+Architecture: amd64
+Maintainer: MyBee Team <myb@convectix.com>
+Depends: systemd
+Provides: cbsd-mq-api
+Section: devel
+Priority: extra
+Homepage: https://myb.convectix.com
+Description: CBSD RestAPI sample.
+  (c) 2014-2025 CBSD Team
